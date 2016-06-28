@@ -103,3 +103,9 @@ Backup*/
 UpgradeLog*.XML
 *.nupkg
 .vs/
+
+
+# DNX
+project.lock.json
+project.fragment.lock.json
+artifacts/
