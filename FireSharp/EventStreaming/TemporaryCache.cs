@@ -3,10 +3,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace FireSharp.EventStreaming
 {
-    internal sealed class TemporaryCache : IDisposable
+    internal sealed class TemporaryCache : IDisposable, IEventStreamResponseCache<JsonReader>
     {
         private readonly LinkedList<SimpleCacheItem> _pathFromRootList = new LinkedList<SimpleCacheItem>();
         private readonly char[] _seperator = {'/'};
@@ -28,6 +29,23 @@ namespace FireSharp.EventStreaming
         }
 
         internal SimpleCacheItem Root { get; } = new SimpleCacheItem();
+
+        public Task<JsonReader> Get(string path)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task AddOrUpdate(string path, JsonReader data)
+        {
+            Replace(path, data);
+
+            return Task.FromResult(true);
+        }
+
+        public Task Remove(string path)
+        {
+            throw new NotImplementedException();
+        }
 
         public void Replace(string path, JsonReader data)
         {

@@ -38,5 +38,12 @@ namespace FireSharp.Interfaces
             ValueChangedEventHandler changed = null,
             ValueRemovedEventHandler removed = null,
             object context = null);
+
+        Task<EventEntityResponse<TEntity>> MonitorEntityListAsync<TEntity>(
+            string path,
+            EntityAddedEventHandler<TEntity> added,
+            EntityChangedEventHandler<TEntity> changed,
+            EntityRemovedEventHandler<TEntity> removed,
+            IEventStreamResponseCache<TEntity> cache);
     }
 }

@@ -3,7 +3,10 @@
     ".NETPortable,Version=v4.5,Profile=Profile259": {}
   },
   "dependencies": {
+    "C5": "2.4.5947.17249",
     "Microsoft.Net.Http": "2.2.29",
-    "Newtonsoft.Json": "6.0.8"
+    "Newtonsoft.Json": "6.0.8",
+    "Provision": "3.0.3",
+    "Provision.Providers.PortableMemoryCache": "3.0.1"
   }
 }

@@ -8,14 +8,14 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Newtonsoft.Json;
+
 namespace FireSharp.Response
 {
-    public class EventRootResponse<T> : IDisposable
+    public sealed class EventRootResponse<T> : EventStreamResponseBase<JsonReader>
     {
         private readonly ValueRootAddedEventHandler<T> _added;
-        private readonly CancellationTokenSource _cancel;
         private readonly string _path;
-        private readonly Task _pollingTask;
         private readonly IRequestManager _requestManager;
 
         internal EventRootResponse(HttpResponseMessage httpResponse, ValueRootAddedEventHandler<T> added,
@@ -25,16 +25,11 @@ namespace FireSharp.Response
             _requestManager = requestManager;
             _path = path;
 
-            _cancel = new CancellationTokenSource();
-            _pollingTask = ReadLoop(httpResponse, _cancel.Token);
+            CancellationTokenSource = new CancellationTokenSource();
+            PollingTask = ReadLoop(httpResponse, CancellationTokenSource.Token);
         }
 
-        ~EventRootResponse()
-        {
-            Dispose(false);    
-        }
-
-        private async Task ReadLoop(HttpResponseMessage httpResponse, CancellationToken token)
+        protected override async Task ReadLoop(HttpResponseMessage httpResponse, CancellationToken token)
         {
             await Task.Factory.StartNew(async () =>
             {
@@ -46,7 +41,7 @@ namespace FireSharp.Response
 
                     while (true)
                     {
-                        _cancel.Token.ThrowIfCancellationRequested();
+                        CancellationTokenSource.Token.ThrowIfCancellationRequested();
 
                         var read = await sr.ReadLineAsync().ConfigureAwait(false);
 
@@ -78,27 +73,6 @@ namespace FireSharp.Response
                     }
                 }
             }, token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
-        }
-
-        public void Cancel()
-        {
-            _cancel.Cancel();
-        }
-
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            Cancel();
-
-            if (disposing)
-            {
-                _cancel.Dispose();
-            }
         }
     }
 }

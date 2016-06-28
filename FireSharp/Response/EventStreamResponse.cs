@@ -1,5 +1,3 @@
-using FireSharp.EventStreaming;
-using Newtonsoft.Json;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -7,95 +5,96 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 
+using FireSharp.EventStreaming;
+
+using Newtonsoft.Json;
+
 namespace FireSharp.Response
 {
-    public class EventStreamResponse : IDisposable
+    public sealed class EventStreamResponse : EventStreamResponseBase<JsonReader>
     {
-        private readonly TemporaryCache _cache;
-        private readonly CancellationTokenSource _cancel;
-        private readonly Task _pollingTask;
-        
-        internal EventStreamResponse(HttpResponseMessage httpResponse,
-            ValueAddedEventHandler added = null,
-            ValueChangedEventHandler changed = null,
-            ValueRemovedEventHandler removed = null,
+        #region Constructors and Destructors
+
+        internal EventStreamResponse(
+            HttpResponseMessage httpResponse, 
+            ValueAddedEventHandler added = null, 
+            ValueChangedEventHandler changed = null, 
+            ValueRemovedEventHandler removed = null, 
             object context = null)
         {
-            _cancel = new CancellationTokenSource();
+            CancellationTokenSource = new CancellationTokenSource();
 
-            _cache = new TemporaryCache();
+            var cache = new TemporaryCache();
 
             if (added != null)
             {
-                _cache.Added += added;
+                cache.Added += added;
             }
+
             if (changed != null)
             {
-                _cache.Changed += changed;
+                cache.Changed += changed;
             }
+
             if (removed != null)
             {
-                _cache.Removed += removed;
+                cache.Removed += removed;
             }
+
             if (context != null)
             {
-                _cache.Context = context;
+                cache.Context = context;
             }
 
-            _pollingTask = ReadLoop(httpResponse, _cancel.Token);
+            Cache = cache;
+            PollingTask = ReadLoop(httpResponse, CancellationTokenSource.Token);
         }
 
-        ~EventStreamResponse()
-        {
-            Dispose(false);
-        }
+        #endregion
 
-        private async Task ReadLoop(HttpResponseMessage httpResponse, CancellationToken token)
-        {
-            await Task.Factory.StartNew(async () =>
-            {
-                using (httpResponse)
-                using (var content = await httpResponse.Content.ReadAsStreamAsync())
-                using (var sr = new StreamReader(content))
-                {
-                    string eventName = null;
+        #region Methods
 
-                    while (true)
+        protected override async Task ReadLoop(HttpResponseMessage httpResponse, CancellationToken token)
+        {
+            await Task.Factory.StartNew(
+                async () =>
                     {
-                        token.ThrowIfCancellationRequested();
-
-                        var read = await sr.ReadLineAsync();
-
-                        Debug.WriteLine(read);
-
-                        if (read.StartsWith("event: "))
+                        using (httpResponse)
+                        using (var content = await httpResponse.Content.ReadAsStreamAsync())
+                        using (var sr = new StreamReader(content))
                         {
-                            eventName = read.Substring(7);
-                            continue;
-                        }
+                            string eventName = null;
 
-                        if (read.StartsWith("data: "))
-                        {
-                            if (string.IsNullOrEmpty(eventName))
+                            while (true)
                             {
-                                throw new InvalidOperationException(
-                                    "Payload data was received but an event did not preceed it.");
+                                token.ThrowIfCancellationRequested();
+
+                                var read = await sr.ReadLineAsync();
+
+                                Debug.WriteLine(read);
+
+                                if (read.StartsWith("event: "))
+                                {
+                                    eventName = read.Substring(7);
+                                    continue;
+                                }
+
+                                if (read.StartsWith("data: "))
+                                {
+                                    if (string.IsNullOrEmpty(eventName))
+                                    {
+                                        throw new InvalidOperationException("Payload data was received but an event did not preceed it.");
+                                    }
+
+                                    Update(eventName, read.Substring(6));
+                                }
+
+                                // start over
+                                eventName = null;
                             }
-
-                            Update(eventName, read.Substring(6));
                         }
-
-                        // start over
-                        eventName = null;
-                    }
-                }
-            }, TaskCreationOptions.LongRunning);
-        }
-
-
-        public void Cancel()
-        {
-            _cancel.Cancel();
+                    }, 
+                TaskCreationOptions.LongRunning);
         }
 
         private void Update(string eventName, string p)
@@ -112,48 +111,18 @@ namespace FireSharp.Response
 
                         if (eventName == "put")
                         {
-                            _cache.Replace(path, ReadToNamedPropertyValue(reader, "data"));
+                            Cache.AddOrUpdate(path, ReadToNamedPropertyValue(reader, "data"));
                         }
                         else
                         {
-                            _cache.Update(path, ReadToNamedPropertyValue(reader, "data"));
+                            Cache.AddOrUpdate(path, ReadToNamedPropertyValue(reader, "data"));
                         }
                     }
+
                     break;
             }
         }
 
-        private JsonReader ReadToNamedPropertyValue(JsonReader reader, string property)
-        {
-            while (reader.Read() && reader.TokenType != JsonToken.PropertyName)
-            {
-                // skip the property
-            }
-
-            var prop = reader.Value.ToString();
-            if (property != prop)
-            {
-                throw new InvalidOperationException("Error parsing response.  Expected json property named: " + property);
-            }
-
-            return reader;
-        }
-
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            Cancel();
-
-            if (disposing)
-            {
-                _cache.Dispose();
-                _cancel.Dispose();
-            }
-        }
+        #endregion
     }
 }
