@@ -41,6 +41,7 @@ namespace FireSharp.Tests
             var queryString = queryBuilder.ToQueryString();
             queryString.ShouldBeEquivalentTo("limitToFirst=8");
         }
+
         [Test]
         public void LimitToLastQueryTest()
         {
@@ -48,6 +49,12 @@ namespace FireSharp.Tests
             var queryString = queryBuilder.ToQueryString();
             queryString.ShouldBeEquivalentTo("limitToLast=10");
         }
-
+        [Test]
+        public void EqualToQueryTest()
+        {
+            QueryBuilder queryBuilder = QueryBuilder.New().EqualTo("equalToValue");
+            var queryString = queryBuilder.ToQueryString();
+            queryString.ShouldBeEquivalentTo("equalTo=\"equalToValue\"");
+        }
     }
 }
