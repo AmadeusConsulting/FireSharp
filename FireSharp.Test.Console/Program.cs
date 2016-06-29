@@ -48,9 +48,11 @@ namespace FireSharp.Test.Console
 
             for (int i = 0; i < 100; i++)
             {
+                var pushId = PushId.NewId();
                 var person = new Person
                                  {
                                      Name = $"Person No. {i}",
+                                     FirebaseKey = pushId,
                                      Destination = destinations[i % 5],
                                      LatitudeLongitude = new List<double>
                                                              {
@@ -58,9 +60,8 @@ namespace FireSharp.Test.Console
                                                                  -109.045224
                                                              }
                                  };
-                var personRef = await _client.PushAsync("persons", person);
-                person.FirebaseKey = personRef.Result.Name;
-                await _client.UpdateAsync($"persons/{personRef.Result.Name}", person);
+                
+                await _client.SetAsync($"persons/{pushId}", person);
             }
         }
 

@@ -73,6 +73,7 @@
     <Compile Include="Logging\ILogManager.cs" />
     <Compile Include="Interfaces\ISerializer.cs" />
     <Compile Include="Interfaces\JsonNetSerializer.cs" />
+    <Compile Include="PushId.cs" />
     <Compile Include="QueryBuilder.cs" />
     <Compile Include="RequestManager.cs" />
     <Compile Include="Interfaces\IFirebaseClient.cs" />
