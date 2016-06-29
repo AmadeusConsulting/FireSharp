@@ -11,6 +11,8 @@ namespace FireSharp
 {
     public class FirebaseClient : IFirebaseClient, IDisposable
     {
+        private readonly IFirebaseConfig _config;
+
         private readonly Action<HttpStatusCode, string> _defaultErrorHandler = (statusCode, body) =>
         {
             if (statusCode < HttpStatusCode.OK || statusCode >= HttpStatusCode.BadRequest)
@@ -23,7 +25,7 @@ namespace FireSharp
 
 
         public FirebaseClient(IFirebaseConfig config)
-            : this(new RequestManager(config))
+            : this(new RequestManager(config), config)
         {
         }
 
@@ -32,9 +34,18 @@ namespace FireSharp
             Dispose(false);
         }
 
-        internal FirebaseClient(IRequestManager requestManager)
+        internal FirebaseClient(IRequestManager requestManager, IFirebaseConfig config)
         {
+            if (requestManager == null)
+            {
+                throw new ArgumentNullException(nameof(requestManager));
+            }
+            if (config == null)
+            {
+                throw new ArgumentNullException(nameof(config));
+            }
             _requestManager = requestManager;
+            _config = config;
         }
 
         public void Dispose()
@@ -388,16 +399,18 @@ namespace FireSharp
             EntityAddedEventHandler<TEntity> added,
             EntityChangedEventHandler<TEntity> changed,
             EntityRemovedEventHandler<TEntity> removed,
-            IEventStreamResponseCache<TEntity> cache)
+            IEventStreamResponseCache<TEntity> cache,
+            QueryBuilder queryBuilder = null)
         {
             return new EventEntityResponse<TEntity>(
-                await _requestManager.ListenAsync(path).ConfigureAwait(false),
+                await _requestManager.ListenAsync(path, queryBuilder).ConfigureAwait(false),
                 path,
                 added,
                 changed,
                 removed,
                 cache,
-                _requestManager);
+                _requestManager,
+                _config);
         }
 
         public async Task<EventStreamResponse> OnAsync(string path, QueryBuilder queryBuilder, ValueAddedEventHandler added = null,

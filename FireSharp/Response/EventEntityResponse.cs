@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using FireSharp.EventStreaming;
 using FireSharp.Extensions;
 using FireSharp.Interfaces;
+using FireSharp.Logging;
 
 using Newtonsoft.Json;
 
@@ -37,6 +38,10 @@ namespace FireSharp.Response
 
         private readonly IRequestManager _requestManager;
 
+        private readonly IFirebaseConfig _config;
+
+        private readonly ILog _log;
+
         #endregion
 
         #region Constructors and Destructors
@@ -48,7 +53,8 @@ namespace FireSharp.Response
             EntityChangedEventHandler<T> changed, 
             EntityRemovedEventHandler<T> removed, 
             IEventStreamResponseCache<T> cache, 
-            IRequestManager requestManager)
+            IRequestManager requestManager,
+            IFirebaseConfig config)
         {
             if (cache == null)
             {
@@ -66,6 +72,8 @@ namespace FireSharp.Response
             _changed = changed;
             _removed = removed;
             _requestManager = requestManager;
+            _config = config;
+            _log = config.LogManager.GetLogger(this);
 
             CancellationTokenSource = new CancellationTokenSource();
             PollingTask = ReadLoop(httpResponse, CancellationTokenSource.Token);
@@ -77,6 +85,8 @@ namespace FireSharp.Response
 
         protected override async Task ReadLoop(HttpResponseMessage httpResponse, CancellationToken token)
         {
+            _log.Debug($"Starting read loop for Entity Event Streaming for path {_basePath}");
+
             await Task.Factory.StartNew(
                 async () =>
                     {
@@ -92,7 +102,7 @@ namespace FireSharp.Response
 
                                 var read = await sr.ReadLineAsync().ConfigureAwait(false);
 
-                                Debug.WriteLine(read);
+                                _log.Debug(read);
 
                                 if (read.StartsWith(EventPrefix))
                                 {
@@ -104,6 +114,7 @@ namespace FireSharp.Response
                                 {
                                     // ignore the data line for the keep-alive event (it's always null)
                                     eventName = null;
+                                    _log.Debug("Keep-Alive event detected -- skipping data line");
                                     continue;
                                 }
 
@@ -111,6 +122,7 @@ namespace FireSharp.Response
                                 {
                                     // security rules have changed such that we no longer have read access to the requested location to be revoked
                                     // TODO: throw an exception that can be handled upstream
+                                    _log.Error("Cancel Event received from server. Exiting Read Loop!");
                                     break;
                                 }
 
@@ -118,6 +130,7 @@ namespace FireSharp.Response
                                 {
                                     // our auth token is no longer valid
                                     // TODO: throw an exception that can be handled upstream
+                                    _log.Error("Firebase Auth Revoked!  Exiting Read Loop!");
                                     break;
                                 }
 
@@ -154,15 +167,13 @@ namespace FireSharp.Response
                                         }
                                         else
                                         {
-                                            Debug.WriteLine("Bad Data Format!!!!");
-                                            Debug.WriteLine(read);
+                                            _log.Error($"Bad Data Format! \n {read.Substring(DataPrefix.Length)}");
                                         }
                                     }
                                 }
                                 catch (Exception ex)
                                 {
-                                    Debug.WriteLine(ex.Message);
-                                    Debug.WriteLine(ex.StackTrace);
+                                    _log.Error($"Unhandled Exception in Read Loop: {ex.Message}", ex);
                                 }
 
                                 // start over

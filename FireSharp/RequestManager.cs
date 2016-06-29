@@ -1,9 +1,12 @@
 ﻿using System;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Runtime.Serialization;
 using System.Threading.Tasks;
 using FireSharp.Exceptions;
 using FireSharp.Interfaces;
+using FireSharp.Logging;
 
 namespace FireSharp
 {
@@ -11,11 +14,14 @@ namespace FireSharp
     {
         internal static readonly HttpMethod Patch = new HttpMethod("PATCH");
 
+        private readonly ILog _log;
+
         private readonly IFirebaseConfig _config;
 
         internal RequestManager(IFirebaseConfig config)
         {
             _config = config;
+            _log = _config.LogManager.GetLogger<RequestManager>();
         }
 
         public void Dispose()
@@ -38,10 +44,28 @@ namespace FireSharp
             HttpRequestMessage request;
             var client = PrepareEventStreamRequest(path, queryBuilder, out request);
 
-            var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
-            response.EnsureSuccessStatusCode();
+            try
+            {
+                var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
 
-            return response;
+                if (!response.IsSuccessStatusCode)
+                {
+                    var responseContent = await response.Content.ReadAsStringAsync();
+
+                    _log.Error($"Request status code was not between 200 and 299: \n\n{responseContent}");
+
+                    throw new FirebaseApiException(
+                        $"The response status code does not indicate success.\n\n The server responded with: {responseContent}",
+                        response);
+                }
+
+                return response;
+            }
+            catch (WebException ex)
+            {
+                _log.Error($"Failed to complete request to {request.RequestUri}", ex);
+                throw new FirebaseApiException("Firebase API Request Failed.", null, ex);
+            }
         }
 
         public Task<HttpResponseMessage> RequestAsync(HttpMethod method, string path, object payload)

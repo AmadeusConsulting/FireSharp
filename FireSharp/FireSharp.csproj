@@ -37,8 +37,10 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <DocumentationFile>bin\Release\FireSharp.XML</DocumentationFile>
   </PropertyGroup>
   <ItemGroup>
+    <None Include="nuget.config.xdt" />
     <None Include="FireSharp.nuspec">
       <SubType>Designer</SubType>
     </None>
@@ -49,10 +51,11 @@
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Xml" />
     <!-- A reference to the entire .NET Framework is automatically included -->
-    <None Include="app.config" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Config\FirebaseConfig.cs" />
+    <Compile Include="Logging\NoOpLogger.cs" />
+    <Compile Include="Logging\NoOpLogManager.cs" />
     <Compile Include="EventStreaming\InMemoryEntityResponseCache.cs" />
     <Compile Include="EventStreaming\IEventStreamResponseCache.cs" />
     <Compile Include="EventStreaming\SimpleCacheItem.cs" />
@@ -63,8 +66,11 @@
     <Compile Include="EventStreaming\ValueRemovedEventArgs.cs" />
     <Compile Include="Exceptions\FirebaseException.cs" />
     <Compile Include="Extensions\ObjectExtensions.cs" />
+    <Compile Include="FirebaseApiException.cs" />
     <Compile Include="FirebaseClient.cs" />
     <Compile Include="Interfaces\IFirebaseConfig.cs" />
+    <Compile Include="Logging\ILog.cs" />
+    <Compile Include="Logging\ILogManager.cs" />
     <Compile Include="Interfaces\ISerializer.cs" />
     <Compile Include="Interfaces\JsonNetSerializer.cs" />
     <Compile Include="QueryBuilder.cs" />

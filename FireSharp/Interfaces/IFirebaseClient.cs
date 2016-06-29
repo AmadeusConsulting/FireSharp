@@ -44,6 +44,7 @@ namespace FireSharp.Interfaces
             EntityAddedEventHandler<TEntity> added,
             EntityChangedEventHandler<TEntity> changed,
             EntityRemovedEventHandler<TEntity> removed,
-            IEventStreamResponseCache<TEntity> cache);
+            IEventStreamResponseCache<TEntity> cache,
+            QueryBuilder queryBuilder = null);
     }
 }

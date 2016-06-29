@@ -5,6 +5,9 @@ using FireSharp.Config;
 using FireSharp.EventStreaming;
 using FireSharp.Interfaces;
 
+using log4net;
+using log4net.Config;
+
 using Newtonsoft.Json;
 
 using Formatting = System.Xml.Formatting;
@@ -19,14 +22,19 @@ namespace FireSharp.Test.Console
 
         private static void Main()
         {
+            XmlConfigurator.Configure();
+
+            LogManager.GetLogger(typeof(Program)).Info("FireSharp Test Harness Starting....");
+
             IFirebaseConfig config = new FirebaseConfig
-            {
-                AuthSecret = FirebaseSecret,
-                BasePath = BasePath
-            };
+                                         {
+                                             AuthSecret = FirebaseSecret,
+                                             BasePath = BasePath,
+                                             LogManager = new Log4NetLogManager()
+                                         };
 
             _client = new FirebaseClient(config); //Uses JsonNet default
-            TCEventStreaming();
+            EntityEventStreaming();
             PersonGenerator();
             //EventStreaming();
             //Crud();
@@ -62,9 +70,9 @@ namespace FireSharp.Test.Console
             System.Console.WriteLine(setResponse.Body);
         }
 
-        private static async void TCEventStreaming()
+        private static async void EntityEventStreaming()
         {
-            await _client.MonitorEntityListAsync<Person>(
+            await _client.MonitorEntityListAsync(
                 "persons",
                 ((sender, key, entity) =>
                     {
@@ -82,7 +90,8 @@ namespace FireSharp.Test.Console
                     {
                         System.Console.WriteLine($"---- REMOVED ----\n {key} \n----\n {removed} \n----\n");
                     },
-                new InMemoryEntityResponseCache<Person>()).ConfigureAwait(false);
+                new InMemoryEntityResponseCache<Person>(),
+                QueryBuilder.New().OrderBy("dest").EqualTo("Home")).ConfigureAwait(false);
         }
 
         private static async void EventStreaming()

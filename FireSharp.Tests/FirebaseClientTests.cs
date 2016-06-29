@@ -18,6 +18,7 @@ namespace FireSharp.Tests
         private HttpResponseMessage _failureResponse;
         private FirebaseClient _firebaseClient;
         private Mock<IRequestManager> _firebaseRequestManagerMock;
+        private Mock<IFirebaseConfig> _config;
 
         protected override void FinalizeSetUp()
         {
@@ -28,6 +29,7 @@ namespace FireSharp.Tests
             };
 
             _firebaseRequestManagerMock = MockFor<IRequestManager>();
+            _config = MockFor<IFirebaseConfig>();
 
             _expectedResponse = new HttpResponseMessage
             {
@@ -40,7 +42,7 @@ namespace FireSharp.Tests
                 StatusCode = HttpStatusCode.InternalServerError
             };
 
-            _firebaseClient = new FirebaseClient(_firebaseRequestManagerMock.Object);
+            _firebaseClient = new FirebaseClient(_firebaseRequestManagerMock.Object, _config.Object);
         }
 
         [Test]

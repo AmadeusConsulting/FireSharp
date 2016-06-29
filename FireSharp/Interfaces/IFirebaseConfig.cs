@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Diagnostics.Contracts;
 
 using FireSharp.EventStreaming;
+using FireSharp.Logging;
 
 namespace FireSharp.Interfaces
 {
@@ -11,5 +13,6 @@ namespace FireSharp.Interfaces
         string AuthSecret { get; set; }
         TimeSpan? RequestTimeout { get; set; }
         ISerializer Serializer { get; set; } 
+        ILogManager LogManager { get; set; }
     }
 }
