@@ -11,9 +11,12 @@ namespace FireSharp.Config
 
         private ILogManager _logManager;
 
+        private IHttpClientHandlerFactory _httpClientHandlerFactory;
+
         public FirebaseConfig()
         {
             Serializer = new JsonNetSerializer();
+            _basePath = string.Empty;
         }
 
         public string BasePath
@@ -41,6 +44,18 @@ namespace FireSharp.Config
             set
             {
                 _logManager = value;
+            }
+        }
+
+        public IHttpClientHandlerFactory HttpClientHandlerFactory
+        {
+            get
+            {
+                return _httpClientHandlerFactory ?? (_httpClientHandlerFactory = new DefaultHttpClientHandlerFactory());
+            }
+            set
+            {
+                _httpClientHandlerFactory = value;
             }
         }
     }

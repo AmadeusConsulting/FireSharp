@@ -54,6 +54,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Config\FirebaseConfig.cs" />
+    <Compile Include="DefaultHttpClientHandlerFactory.cs" />
+    <Compile Include="Interfaces\IHttpClientHandlerFactory.cs" />
     <Compile Include="Logging\NoOpLogger.cs" />
     <Compile Include="Logging\NoOpLogManager.cs" />
     <Compile Include="EventStreaming\InMemoryEntityResponseCache.cs" />

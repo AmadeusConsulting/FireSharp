@@ -105,9 +105,9 @@ namespace FireSharp
             }
         }
 
-        private HttpClient GetClient(HttpClientHandler handler = null)
+        private HttpClient GetClient(HttpMessageHandler handler = null)
         {
-            var client = handler == null ? new HttpClient() : new HttpClient(handler, true);
+            var client = handler == null ? new HttpClient(_config.HttpClientHandlerFactory.CreateHandler()) : new HttpClient(handler, true);
 
             var basePath = _config.BasePath.EndsWith("/") ? _config.BasePath : _config.BasePath + "/";
             client.BaseAddress = new Uri(basePath);
@@ -122,7 +122,8 @@ namespace FireSharp
 
         private HttpClient PrepareEventStreamRequest(string path, QueryBuilder queryBuilder, out HttpRequestMessage request)
         {
-            var client = GetClient(new HttpClientHandler { AllowAutoRedirect = true });
+            var handler = _config.HttpClientHandlerFactory.CreateHandler(allowAutoRedirects: true);
+            var client = GetClient(handler);
             var uri = PrepareUri(path, queryBuilder);
 
             request = new HttpRequestMessage(HttpMethod.Get, uri);

@@ -14,5 +14,6 @@ namespace FireSharp.Interfaces
         TimeSpan? RequestTimeout { get; set; }
         ISerializer Serializer { get; set; } 
         ILogManager LogManager { get; set; }
+        IHttpClientHandlerFactory HttpClientHandlerFactory { get; }
     }
 }

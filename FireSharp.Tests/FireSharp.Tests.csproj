@@ -97,8 +97,10 @@
     <Compile Include="FirebaseQueryTests.cs" />
     <Compile Include="FiresharpTests.cs" />
     <Compile Include="FirebaseClientTests.cs" />
+    <Compile Include="Mocks\MockableHttpMessageHandler.cs" />
     <Compile Include="Models\Todo.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="RequestManagerTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
