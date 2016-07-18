@@ -16,7 +16,7 @@ namespace FireSharp.Response
         protected static readonly Regex DataRegex = new Regex(
             @"\{\s* <?# Start JSON Object>
                 ""path"":\s*""(?<Path>[^""]+)""\s*,\s* <?# Path Property with string value >
-                ""data"":\s*(?<Data>(\{.*\}|""(([^""]|(?<=\\)"")+)?""|\d+(\.\d+)?|null))\s* <?# data property with object, number, string, or null value >
+                ""data"":\s*(?<Data>(\{.*\}|""(([^""]|(?<=\\)"")+)?""|\d+(\.\d+)?|false|true|null))\s* <?# data property with object, number, string, boolean, or null value >
               \} <?# End JSON Object >", RegexOptions.Singleline | RegexOptions.IgnorePatternWhitespace);
 
         protected const string EventPrefix = "event: ";
