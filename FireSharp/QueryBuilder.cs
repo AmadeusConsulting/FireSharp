@@ -39,9 +39,9 @@ namespace FireSharp
             return AddToQueryDictionary(endAtParam, value);
         }
 
-        public QueryBuilder EqualTo(string value)
+        public QueryBuilder EqualTo(object value)
         {
-            return AddToQueryDictionary(equalToParam, value);
+            return AddToQueryDictionary(equalToParam, value, skipQuotesForNonString: true);
         }
 
         public QueryBuilder OrderBy(string value)
@@ -71,23 +71,30 @@ namespace FireSharp
             return AddToQueryDictionary(formatParam, value ? formatVal : string.Empty, skipEncoding: true);
         }
 
-        private QueryBuilder AddToQueryDictionary(string parameterName, string value, bool skipEncoding = false)
+        private QueryBuilder AddToQueryDictionary(string parameterName, object value, bool skipEncoding = false, bool skipQuotesForNonString = false)
         {
-            if (!string.IsNullOrEmpty(value))
+            if (value != null)
             {
-                _query.Add(parameterName, skipEncoding ? value : EscapeString(value));
+                var quote = !skipQuotesForNonString || (value is string);
+
+                var stringValue = value.ToString();
+
+                if (!string.IsNullOrEmpty(stringValue))
+                {
+                    _query.Add(parameterName, skipEncoding ? value : EscapeString(stringValue, quote));
+                    return this;
+                }
             }
-            else
-            {
-                _query.Remove(startAtParam);
-            }
+
+            _query.Remove(startAtParam);
 
             return this;
         }
 
-        private string EscapeString(string value)
+        private string EscapeString(string value, bool quote = true)
         {
-            return $"\"{Uri.EscapeDataString(value).Replace("%20", "+").Trim('\"')}\"";
+            var quotes = quote ? "\"" : string.Empty;
+            return $"{quotes}{Uri.EscapeDataString(value).Replace("%20", "+").Trim('\"')}{quotes}";
         }
 
         public string ToQueryString()

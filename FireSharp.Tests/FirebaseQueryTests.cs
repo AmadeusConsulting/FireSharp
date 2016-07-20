@@ -56,5 +56,12 @@ namespace FireSharp.Tests
             var queryString = queryBuilder.ToQueryString();
             queryString.ShouldBeEquivalentTo("equalTo=\"equalToValue\"");
         }
+        [Test]
+        public void EqualToQueryTestWithNonStringValue()
+        {
+            QueryBuilder queryBuilder = QueryBuilder.New().EqualTo(10);
+            var queryString = queryBuilder.ToQueryString();
+            queryString.ShouldBeEquivalentTo("equalTo=10");
+        }
     }
 }
