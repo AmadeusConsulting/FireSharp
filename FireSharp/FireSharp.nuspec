@@ -3,23 +3,29 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
   <metadata>
     <id>FireSharp</id>
-    <version>2.0.4</version>
+    <version>2.0.4-amadeus11</version>
     <title>Fire#</title>
-    <authors>ziyasal</authors>
+    <authors>ziyasal, Amadeus Consulting</authors>
     <owners>ziyasal</owners>
-    <licenseUrl>https://github.com/ziyasal/FireSharp/blob/master/LICENSE.md</licenseUrl>
-    <projectUrl>https://github.com/ziyasal/FireSharp</projectUrl>
+    <licenseUrl>https://github.com/AmadeusConsulting/FireSharp/blob/master/LICENSE.md</licenseUrl>
+    <projectUrl>https://github.com/AmadeusConsulting/FireSharp</projectUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>.Net wrapper for Firebase API</description>
     <language>en-US</language>
     <tags>firebase rest api client realtime</tags>
     <dependencies>
-      <dependency id="Newtonsoft.Json" version="6.0.4" />
-      <dependency id="Microsoft.Net.Http" version="2.2.28" />
-      <dependency id="Microsoft.Bcl.Async" version="1.0.168" />
+      <dependency id="Newtonsoft.Json" version="6.0.8" />
+      <dependency id="Microsoft.Net.Http" version="2.2.29" />
+      <dependency id="C5" version="2.4.5947.17249" />
+      <dependency id="Provision" version="3.0.3" />
+      <dependency id="Provision.Providers.PortableMemoryCache" version="3.0.1" />
+      <dependency id="jose-pcl" version="0.0.4" />
     </dependencies>
   </metadata>
   <files>
-    <file src="bin\Release\FireSharp.dll" target="lib\portable-net45+sl5+wp8+win8\FireSharp.dll" />
+    <file src="bin\Release\FireSharp.*" target="lib\portable-net45+sl5+wp8+win8" />
+    <!--<file src="nuget.config.xdt" target="Content\App.config.install.xdt" />
+    <file src="nuget.config.xdt" target="Content\Web.config.install.xdt" />-->
+    <file src="**\*.cs" target="src" />
   </files>
 </package>
