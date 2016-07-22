@@ -40,7 +40,6 @@
     <DocumentationFile>bin\Release\FireSharp.XML</DocumentationFile>
   </PropertyGroup>
   <ItemGroup>
-    <None Include="nuget.config.xdt" />
     <None Include="FireSharp.nuspec">
       <SubType>Designer</SubType>
     </None>
@@ -55,6 +54,7 @@
   <ItemGroup>
     <Compile Include="Config\FirebaseConfig.cs" />
     <Compile Include="DefaultHttpClientHandlerFactory.cs" />
+    <Compile Include="Extensions\DateTimeOffsetExtensions.cs" />
     <Compile Include="Interfaces\IHttpClientHandlerFactory.cs" />
     <Compile Include="Logging\NoOpLogger.cs" />
     <Compile Include="Logging\NoOpLogManager.cs" />
@@ -90,6 +90,8 @@
     <Compile Include="Response\SetResponse.cs" />
     <Compile Include="Response\StreamingEventData.cs" />
     <Compile Include="Response\StreamingEventType.cs" />
+    <Compile Include="Security\CustomFirebaseTokenGenerator.cs" />
+    <Compile Include="Security\GoogleCloudCredentials.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\Portable\$(TargetFrameworkVersion)\Microsoft.Portable.CSharp.targets" />
   <Import Project="$(SolutionDir)\.nuget\NuGet.targets" Condition="Exists('$(SolutionDir)\.nuget\NuGet.targets')" />
