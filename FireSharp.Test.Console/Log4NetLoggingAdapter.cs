@@ -17,6 +17,8 @@ namespace FireSharp.Test.Console
             _logger = logger;
         }
 
+        public bool IsDebugEnabled => _logger.IsDebugEnabled;
+
         public void Debug(string message)
         {
             _logger.Debug(message);

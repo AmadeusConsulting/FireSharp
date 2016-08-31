@@ -4,6 +4,8 @@ namespace FireSharp.Logging
 {
     public class NoOpLogger : ILog
     {
+        public bool IsDebugEnabled { get; } = false;
+
         public void Debug(string message)
         {
         }

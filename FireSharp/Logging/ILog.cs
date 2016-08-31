@@ -4,6 +4,8 @@ namespace FireSharp.Logging
 {
     public interface ILog
     {
+        bool IsDebugEnabled { get; }
+
         void Debug(string message);
 
         void Info(string message);
