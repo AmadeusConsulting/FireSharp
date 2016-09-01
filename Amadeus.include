@@ -1,0 +1,515 @@
+<?xml version="1.0"?>
+<project name="Amadeus Shared Build File" xmlns="http://nant.sf.net/release/0.92/nant.xsd">
+	<!-- Include the Environment Include script which sets up paths to resources like MSBUild, Sql Compare, etc-->
+	<if test="${not property::exists('buildfile.includes.dir')}">
+		<property name="buildfile.includes.dir" value="${ path::combine(project::get-base-directory(), 'BuildProcess') }" /> <!-- For backwards compatability -->
+	</if>
+
+	<include buildfile="${buildfile.includes.dir}\Environment.include" verbose="true" />
+
+	<if test="${not property::exists('env.msbuild.path')}">
+		<!-- support defaulting msbuild path to .NET 4.0 for legacy builds which do not include it in the environment.include -->
+		<property name="env.msbuild.path" value="${env.msbuild.net40.path}" />
+	</if>
+	
+	<property name="skip.deploy.artifacts" value="false" unless="${property::exists('skip.deploy.artifacts')}" />
+	<property name="use.local.artifact.folder" value="false" unless="${property::exists('use.local.artifact.folder')}"/>
+	<property name="local.artifact.folder.path" value="${project::get-base-directory()}\build" unless="${property::exists('local.artifact.folder.path')}"/>
+
+  <!-- 
+  This property gets set to true in the 'push' target if the version is loaded from a version.txt file, 
+  which only happens when the build scripts are run from previously-generated build artifacts
+  -->
+  <property name="pushing.from.artifacts" value="false" />
+	
+	<!-- Default DFS/Builds Artifact Deployment Behavior -->
+	<property name="event" value="preDeployArtifacts" />
+	<property name="subscriber" value="initDfsArtifactDirectory" />
+	<call target="subscribe" unless="${skip.deploy.artifacts or use.local.artifact.folder}" />
+	<property name="event" value="preDeployArtifacts" />
+	<property name="subscriber" value="init-local-build-folder" />
+	<call target="subscribe" unless="${not use.local.artifact.folder}"/>
+	<property name="event" value="preDeployArtifacts" />
+	<property name="subscriber" value="setArtifactDirectory" />
+	<call target="subscribe" unless="${not skip.deploy.artifacts}" />
+	<property name="event" value="artifactsDeploying" />
+	<property name="subscriber" value="collect-build-process-artifacts" />
+	<call target="subscribe" />
+	
+	<!-- The Big Show -->
+	<target name="build" depends="getSubversionRevisionNumber,setAllProjectVersions">
+		<property name="sourceLocation" value="${project::get-base-directory()}" unless="${property::exists('sourceLocation')}" />
+		<property name="version" value="${BuildLabel}" unless="${property::exists('version')}"/>
+		
+		<property name="event" value="before-compile" />
+		<call target="raiseEvent" />
+		
+		<property name="event" value="compile"/>
+		<call target="raiseEvent" />
+		
+		<property name="event" value="after-compile" />
+		<call target="raiseEvent"/>
+    
+    <call target="test" unless="${property::exists('build.notest') and property::get-value('build.notest') == 'true'}" />
+		
+		<call target="deployArtifacts" />
+	</target>
+
+  <target name="test" description="Run tests (if any) in the project">
+    <property name="event" value="test" />
+    <call target="raiseEvent" />
+  </target>
+
+	<target name="setAllProjectVersions">
+		<property name="projectNames" value="" unless="${property::exists('projectNames')}" /> <!-- default to blank list -->
+		<foreach item="String" in="${projectNames}" delim="," trim="Both" property="projectName">
+			<do>
+				<call target="setProjectVersion" />
+			</do>
+		</foreach>
+	</target>
+
+  <target
+   name="checkTags"
+   description="Checks to see if this build was triggered by a tag and updates the appropriate properties">
+
+    <echo message="Checking for updated tags . . ."/>
+
+    <property name="tagsDirectory"
+              value="${string::replace(project::get-base-directory(), '\Trunk', '\Tags')}"></property>
+
+    <echo message="Tags Directory: ${tagsDirectory}"/>
+
+    <!-- Set a default value for the last tag revision -->
+    <property name="lastTagRevision" value="00"/>
+    <property name="tagPath" value=""/>
+
+    <if test="${directory::exists(tagsDirectory)}">
+      <!-- Get the SVN Log for the last commit to the Tags directory -->
+      <exec
+        program="svn.exe"
+        commandline='log "${tagsDirectory}" --xml --limit 1 --verbose'
+        output="_tagrevision.xml"
+        failonerror="false"/>
+
+      <!-- Get the revision number from the log -->
+      <xmlpeek
+        file="_tagrevision.xml"
+        xpath="/log/logentry/@revision"
+        property="lastTagRevision"
+        failonerror="false"/>
+
+      <xmlpeek
+       file="_tagrevision.xml"
+       xpath="/log/logentry/paths/path[@action='A']"
+       property="tagPath"
+       failonerror="false"/>
+      <!-- /DCMT/Tags/1.0.111-Alpha -->
+
+      <echo message="Last Tag revision: ${lastTagRevision}"/>
+      <echo message="Tag path: ${tagPath}"/>
+    </if>
+
+    <call target="getSubversionRevisionNumber" />
+
+    <if test="${int::parse(lastTagRevision) > int::parse(svn.revision)}">
+      <!-- The tag is newer; build it -->
+      <property name="TagBuildArtifactDirectory"
+                value="${BuildArtifactDirectory}\Tags\${string::substring(tagPath, string::last-index-of(tagPath, '-') + 1, string::get-length(tagPath) - string::last-index-of(tagPath, '-') - 1)}" />
+      <echo message="BuildArtifactDirectory changed to: ${TagBuildArtifactDirectory}"/>
+
+      <property name="TagBuildLabel"
+                value="${string::substring(tagPath, string::last-index-of(tagPath, '/'), string::last-index-of(tagPath, '-') - string::last-index-of(tagPath, '/'))}">
+      </property>
+      <echo message="BuildLabel changed to: ${TagBuildLabel}"/>
+
+    </if>
+
+  </target>
+  
+	<!-- Events -->
+	<target name="subscribe">
+		<property name="eventListName" value="${event}.Subscribers" />
+		<echo message="subscribing task '${subscriber}' to event '${event}'"/>
+		<choose>
+			<when test="${not property::exists(eventListName)}">
+				<property name="${eventListName}" value="${subscriber}" />
+			</when>
+			<otherwise>
+				<property name="${eventListName}" value="${property::get-value(eventListName)},${subscriber}" />
+			</otherwise>
+		</choose>
+	</target>
+	
+	<target name="raiseEvent">
+		<property name="eventListName" value="${event}.Subscribers" />
+		<echo message="raising event ${event}"/>
+		<if test="${property::exists(eventListName)}">
+			<echo message="subscribers are ${property::get-value(eventListName)}" />
+			<foreach item="String" in="${property::get-value(eventListName)}" delim="," trim="Both" property="subscriber">
+				<do>
+					<call target="${subscriber}" />
+				</do>
+			</foreach>
+		</if>
+	</target>
+	
+	<!-- Event Definitions -->
+	<target name="deployArtifacts">
+		<property name="event" value="preDeployArtifacts" />
+		<call target="raiseEvent"/>
+		
+		<property name="event" value="artifactsDeploying" />
+		<call target="raiseEvent" />
+		
+		<property name="event" value="artifactsDeployed" />
+		<call target="raiseEvent" />
+	</target>
+
+	<target name="initDfsArtifactDirectory">
+		<fail if="${not property::exists('BuildLabel')}" message="BuildLabel needs to be defined. Is the Build Server configured to pass this variable?"/>
+		<property name="artifactLocation" value="${BuildArtifactDirectory}\${BuildLabel}" unless="${property::exists('artifactLocation')}" />
+
+		<if test="${property::exists('TagBuildArtifactDirectory')}">
+			<property name="artifactLocation" value="${TagBuildArtifactDirectory}\${TagBuildLabel}" />
+		</if>
+
+		<mkdir dir="${artifactLocation}" />
+		
+	</target>
+
+	<target name="init-local-build-folder">
+		<!-- delete existing build artifacts -->
+		<delete dir="${local.artifact.folder.path}" includeemptydirs="true" failonerror="true" />
+
+		<mkdir dir="${local.artifact.folder.path}" />
+
+		<property name="artifactDirectory" value="${local.artifact.folder.path}"/>
+
+		<property name="artifactLocation" value="${local.artifact.folder.path}"/>
+	</target>
+
+	<target name="setArtifactDirectory">
+		<!-- Target to default the Artifact directory to the project root, in the case of skip.deploy.artifacts = true -->
+		<property name="artifactDirectory" value="${project::get-base-directory()}" unless="${property::exists('artifactDirectory')}" />
+	</target>
+
+	<target name="collect-build-process-artifacts" if="${property::exists('artifactLocation')}">
+		<echo message="${BuildLabel}" file="${artifactLocation}\version.txt" />
+
+		<!-- The project build file(s) -->
+		<copy todir="${artifactLocation}" >
+			<fileset basedir="${sourceLocation}">
+				<include name="*.build" />
+			</fileset>
+		</copy>
+
+		<mkdir dir="${artifactLocation}\BuildProcess" />
+
+		<!-- Include files -->
+		<copy todir="${artifactLocation}\BuildProcess" verbose="true">
+			<fileset basedir="${sourceLocation}\BuildProcess">
+				<include name="*.include" />
+				<include name="NAnt\custom_tasks\**\*.dll"/>
+				<include name="NAnt\custom_tasks\**\*.pdb"/>
+				<include name="Boo\Lib\*.dll" />
+				<include name="Boo\Scripts\*.boo" />
+				<include name="Boo\boo-nant-tasks.zip" />
+			</fileset>
+		</copy>
+	</target>
+	
+	<target name="push">
+		<property name="artifactLocation" value="${directory::get-current-directory()}" unless="${property::exists('artifactLocation')}" />
+
+		<if test="${not property::exists('version') and file::exists(artifactLocation + '\version.txt')}">
+			<echo message="Loading version number from ${artifactLocation}\version.txt ..." />
+			<loadfile file="${artifactLocation}\version.txt" property="file.version" />
+			<property name="version" value="${string::trim(file.version)}" />
+      <property name="pushing.from.artifacts" value="true" />
+		</if>
+
+		<fail if="${not property::exists('version')}" message="property version must be set (try placing it in a version.txt file in the artifact directory)" />
+
+		<echo message="Using version=${version} for push..." />
+		
+		<property name="event" value="pushing" />
+		<call target="raiseEvent" />
+		
+		<property name="event" value="pushed" />
+		<call target="raiseEvent" />
+	</target>
+
+	<target name="dump-properties">
+		<boo>
+			<![CDATA[
+			import System.Collections
+			
+			print("******************************************************************")
+			print("**************  NAnt Builtin Properties **************************")
+			print("******************************************************************")
+			
+			for p as DictionaryEntry in [prop for prop as DictionaryEntry in Project.Properties if  (prop.Key cast string).StartsWith("nant.")]:
+				print("${p.Key} = ${p.Value}") 
+			
+				
+			print("******************************************************************")
+			print("**************  Build-Specific Properties ************************")
+			print("******************************************************************")
+			
+			for p as DictionaryEntry in [prop for prop as DictionaryEntry in Project.Properties if not (prop.Key cast string).StartsWith("nant.")]:
+				print("${p.Key} = ${p.Value}") 
+			]]>
+		</boo>
+	</target>
+
+	<target name="delete-property">
+		<fail if="${not(property::exists('delete.property.name'))}" />
+		<boo>
+			<![CDATA[
+			if Project.Properties.Contains(Project.Properties["delete.property.name"]):
+				Project.Properties.Remove(Project.Properties["delete.property.name"])
+			]]>
+		</boo>
+	</target>
+	
+	<!-- Helpers -->
+	<target
+	  name="getSubversionRevisionNumber"
+	  description="DEPRECATED Gets the current project's SVN revision number and puts it in 'svn.revision'">
+
+		<echo message="Retrieving Subversion revision number"/>
+
+		<choose>
+			<when test="${environment::variable-exists('SVN_REVISION')}">
+				<!-- Jenkins sets the SVN Revision number in the environment variables -->
+				<property name="svn.revision" value="${environment::get-variable('SVN_REVISION')}" overwrite="true" />
+			</when>
+			<otherwise>
+				<!-- Default to 0 as SVN Revision Number -->
+				<property name="svn.revision" value="0" overwrite="true" />
+			</otherwise>
+		</choose>
+
+		<echo message="Using SVN Revision Number ${svn.revision}" />
+	</target>
+	
+	<target
+		name="setProjectVersion"
+		description="Updates the AssemblyInfo of a project/assembly before a build with the current version info">
+
+		<if test="${not property::exists('clsCompliant')}">
+			<property name="clsCompliant" value="true" />
+		</if>
+
+		<if test="${not property::exists('comVisible')}">
+			<property name="comVisible" value="false" />
+		</if>
+		
+		<if test="${not property::exists('assemblyLanguage')}">
+			<property name="assemblyLanguage" value="CSharp" />
+		</if>
+
+		<if test="${not property::exists('neutralResourcesLanguage')}">
+		  <property name="neutralResourcesLanguage" value="en-US" />
+		</if>
+    
+		<property name="${projectName + '.path'}" value="${projectName}" unless="${property::exists(projectName + '.path')}" />
+			
+		<if test="${assemblyLanguage == 'CSharp'}">
+			<property name="assemblyOutputPath" value="${property::get-value(projectName + '.path')}\Properties\AssemblyInfo.cs" />
+		</if>
+		
+		<if test="${assemblyLanguage == 'VB'}">
+			<property name="assemblyOutputPath" value="${property::get-value(projectName + '.path')}\AssemblyInfo.vb" />
+		</if>
+
+		<regex input="${BuildLabel}" pattern="(?'parsedversion'\d+\.\d+\.\d+(\.\d+)?)" failonerror="true" verbose="false" />
+
+		<property name="assemblyversion.informational" value="${BuildLabel}" />
+		<property name="assemblyversion.informational" value="${BuildLabel.informational}" if="${property::exists('BuildLabel.informational')}" />
+			
+		<choose>
+			<when test="${file::exists(assemblyOutputPath)}">	
+				<echo>
+					Setting Assembly Info for Project ${projectName}
+					Client Name = ${clientName}
+					Version = ${parsedversion}
+					CLS Compliant = ${clsCompliant}
+					COM Visible = ${comVisible}
+					Neutral Resources Language = ${neutralResourcesLanguage}
+					Informational Version = ${assemblyversion.informational}
+				</echo>
+				
+				<asminfo output="${assemblyOutputPath}" language="${assemblyLanguage}">
+					<imports>
+						<import namespace="System" />
+						<import namespace="System.Reflection" />
+						<import namespace="System.Runtime.CompilerServices" />
+						<import namespace="System.Runtime.InteropServices" />
+						<import namespace="System.Resources" />
+					</imports>
+				<!-- System.Reflection.AssemblyInformationalVersionAttribute -->
+					<attributes>
+						<attribute type="AssemblyTitleAttribute" value="${clientName} ${projectName}" />
+						<attribute type="AssemblyCopyrightAttribute" value="Copyright &#169; Amadeus Consulting ${datetime::get-year(datetime::now())}" />
+						<attribute type="AssemblyVersionAttribute" value="${parsedversion}" />
+						<attribute type="AssemblyFileVersionAttribute" value="${parsedversion}" />
+						<attribute type="CLSCompliantAttribute" value="${clsCompliant}" />
+						<attribute type="ComVisibleAttribute" value="${comVisible}" />
+						<attribute type="NeutralResourcesLanguageAttribute" value="${neutralResourcesLanguage}" />
+						<attribute type="AssemblyInformationalVersionAttribute" value="${assemblyversion.informational}" />
+					</attributes>
+
+					<references>
+						<include name="System.EnterpriseServices.dll" />
+					</references>
+
+				</asminfo>
+			</when>
+			<otherwise>
+				<echo message="Could not set Assembly Version for Project ${projectName}! The path ${assemblyOutputPath} was not found." level="Warning" />
+			</otherwise>
+		</choose>
+	</target>
+
+	<target name="update-connectionstring-list">
+		<!--
+			Example:
+			<property name="connectionstring.list.input" value="default=DataSource=myserver;Initial Catalog=mydatabase;Integrated Security=SSPI;,alternate=AlternateDataSource=myserver2;Initial Catalog=mydatabase2;Integrated Security=SSPI;" />
+			<property name="connectionstring.configfile" value="path\to\your\config.config" />
+			
+			<call target="update-connectionstring-list" />
+			
+			What it does:
+			
+			Goes through the comma-separated list of connectionstrings in the format CONNECTIONSTRING_NAME=CONNECTIONSTRING_VALUE[,CONNECTIONNSTRING_NAME2=CONNECTIONSTRING_VALUE2...]
+			and sets the connectionstring settings for the connection string by name in an App.config or Web.config located at <connectionstring.configfile>
+ 		-->
+
+		<foreach item="String" property="app.connectionstring" in="${connectionstring.list.input}" delim="," trim="Both">
+			<regex pattern="^(?'parsedconnectionname'[A-Za-z0-9-_\.]+)=(?'parsedconnectionvalue'.*)$" input="${app.connectionstring}" />
+			<echo message="Setting connection string to config file ${connectionstring.configfile}: ${parsedconnectionname} = ${parsedconnectionvalue}" />
+			<property name="connectionstring.name" value="${parsedconnectionname}" />
+			<property name="connectionstring.value" value="${parsedconnectionvalue}" />
+			<call target="update-connectionstring"/>
+		</foreach>
+		
+	</target>
+	
+	<target name="update-connectionstring">
+		<!--
+			Example:
+			<property name="connectionstring.name" value="mycustomename" />
+			<property name="connectionstring.value" value="DataSource=myserver;Initial Catalog=mydatabase;Integrated Security=SSPI;" />
+			<property name="connectionstring.configfile" value="path\to\your\config.config" />
+			
+			<call target="update-connectionstring" />
+			
+			What it does:
+			
+			Sets the connectionstring settings for the connection string named <connectionstring.name> in an App.config or Web.config located at <connectionstring.configfile> to <connectionstring.value>
+ 		-->
+		<fail unless="${property::exists('connectionstring.value')}" message="Property 'connectionstring.value' must be set before calling update-connectionstring"/>
+		<fail unless="${property::exists('connectionstring.configfile')}" message="Property 'connectionstring.configfile' must be set before calling update-connectionstring"/>
+		
+		<property name="configFile" value="${connectionstring.configfile}" />
+		<property name="connectionstring.name" value="default" unless="${property::exists('connectionstring.name')}" />
+		<property name="parsedconnectionstringname" value="" overwrite="true" />
+		
+		<!-- get all connectionString nodes -->
+		<xmlpeek
+			file="${configFile}"
+			xpath="/configuration/connectionStrings"
+			property="connectionstrings.all" />
+			
+		<!-- use regex to search for the connection string with our desired name -->
+		<regex pattern="name=&quot;(?'parsedconnectionstringname'${connectionstring.name})&quot;" input="${connectionstrings.all}" failonerror="false" verbose="false" />
+			
+		<if test="${string::get-length(parsedconnectionstringname) == 0}">
+			<echo message="${'Connection String ' + connectionstring.name + ' is missing.  Adding it...'}" />
+			
+			<property name="connectionstring.new" value="&lt;add name=&quot;${connectionstring.name}&quot; connectionString=&quot;&quot; providerName=&quot;System.Data.SqlClient&quot; /&gt;" />
+			
+			<xmlpoke
+				file="${configFile}"
+				xpath="/configuration/connectionStrings"
+				value="${connectionstrings.all}${connectionstring.new}" />
+		</if>
+		
+		<xmlpoke file="${configFile}"
+				 xpath="/configuration/connectionStrings/add[@name='${connectionstring.name}']/@connectionString"
+				 value="${connectionstring.value}" />
+	</target>
+	
+	<!-- Configuration file manipulation -->
+	<target name="updateAppSetting">
+		<!-- For backwards compatibility -->
+		<call target="update-appsetting" />
+	</target>
+	
+	<target
+		name="update-appsetting"
+		description="Updates (or creates) an application setting in the file 'configFile' with the key 'appSettingKey' with the value 'appSettingValue'">
+		<!-- For backwards compatibility -->
+		<property name="config.filepath" value="${configFile}" if="${not (property::exists('config.filepath')) and property::exists('configFile')}"/>
+		<property name="appsetting.key" value="${appSettingKey}" if="${property::exists('appSettingKey')}" />
+		<property name="appsetting.value" value="${appSettingValue}" if="${property::exists('appSettingValue')}" />
+		
+		<fail if="${not (property::exists('appsetting.key'))}" message="update-appsetting requires property 'appsetting.key'" />
+		<fail if="${not (property::exists('appsetting.value'))}" message="update-appsetting requires property 'appsetting.value'" />
+
+		<boo>
+			<include path="${buildfile.includes.dir}\Boo\Scripts\XmlObject.boo" />
+			<code>
+				<![CDATA[
+					import Boo.XmlObject
+				
+					filepath = Project.Properties["config.filepath"]
+					appsetting_key = Project.Properties["appsetting.key"]
+					appsetting_value as string = Project.Properties["appsetting.value"]
+
+					def update_appsetting(configuration as XmlObject):
+						appsettings = configuration.Ensure("appSettings")[0]
+						existing_settings = [val for val as XmlObject in appsettings.add if val["key"] == appsetting_key]
+						if not len(existing_settings):
+							print("AppSetting ${appsetting_key} does not exist, adding it with value = ${appsetting_value}...")
+							appsettings.Append("<add key=\"${appsetting_key}\" value=\"${appsetting_value}\" />")
+						else:
+							print("Updating existing AppSetting key ${appsetting_key} with value ${appsetting_value}")
+							existing_setting as XmlObject = existing_settings[0]
+							existing_setting["value"] = appsetting_value
+
+					XmlObject.edit_xml_file(filepath, update_appsetting, print)
+				]]>
+			</code>
+		</boo>
+	</target>
+	
+	<target 
+		name="deploySimplexLoggingSchema" if="${property::exists('dbConnectionString') and property::exists('simplexLoggingSchemaFile')}"
+		description="Executes the Simplex Logging Schema file on the target database specified in the dbConnectionString property" >
+		<sql
+			connstring="${dbConnectionString};Provider=SQLNCLI10.1;"
+			transaction="true"
+			delimiter=";"
+			delimstyle="Normal"
+			print="true"
+			source="${simplexLoggingSchemaFile}"
+			output="" />
+	</target>
+
+	<target name="grant-write-access-to-directory">
+		<!--
+			Grants write access to the given directory path for the given username
+		-->
+		<fail if="${not property::exists('grant.directory.path') or not property::exists('grant.username')}" 
+					message="grant.directory.path and grant.username properties must be set before calling the grant-write-access-to-directory target"/>
+		
+		<exec program="icacls" verbose="true">
+			<arg dir="${grant.directory.path}" />
+			<arg line="/grant ${grant.username}:M /T" />
+		</exec>
+	</target>
+	
+</project>

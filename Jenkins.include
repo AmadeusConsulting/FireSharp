@@ -1,0 +1,53 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<project name="Jenkins Environment Setup Include" xmlns="http://nant.sf.net/release/0.92/nant.xsd">
+
+	<!-- MSBuild -->
+	<property name="env.msbuild.net40.path" value="${environment::get-variable('MSBUILD_NET40')}" />
+  <property name="env.msbuild.14.path" value="${environment::get-variable('MSBUILD_14_PATH')}" />
+
+	<property name="env.msbuild.path" value="${env.msbuild.net40.path}" /> <!-- Default to the .NET 4.0 Version (which can be overidden in project build files) -->
+
+	<!-- Application locations -->
+	<property name="env.Vs2005_path" value="${environment::get-variable('VS2005_PATH')}" />
+	<property name="env.NUnitConsoleLocation" value="${environment::get-variable('NUNIT_CONSOLE_PATH')}" />
+  <property name="env.nunit3.console.path" value="${environment::get-variable('NUNIT3_CONSOLE_PATH')}" />
+	<property name="env.MbUnitConsoleLocation" value="${environment::get-variable('MB_UNIT_CONSOLE_PATH')}" />
+	<property name="env.SqlCompareLocation" value="${environment::get-variable('SQLCOMPARE_DEFAULT_PATH')}" />
+	<property name="env.SqlPubWizLocation" value="${environment::get-variable('SQL_PUB_WIZ_PATH')}" />
+	<property name="env.MySqlCompareLocation" value="${environment::get-variable('MYSQL_COMPARE_PATH')}" />
+	<property name="env.MySqlDataCompareLocation" value="${environment::get-variable('MYSQL_DATACOMPARE_PATH')}" />
+	<property name="env.SubversionLocation" value="${environment::get-variable('SUBVERSION_PATH')}" />
+	<property name="env.YUICompressorPath" value="${environment::get-variable('YUI_COMPRESSOR_PATH')}" />
+	<property name="env.vsdbcmd-path" value="${environment::get-variable('VSDBCMD_PATH')}" />
+	<property name="env.NugetPath" value="${environment::get-variable('NUGET_PATH')}" />
+	<property name="env.sqlpackage.path" value="${environment::get-variable('SQLPACKAGE_PATH')}" />
+	<property name="env.dtexec.path" value="${environment::get-variable('DTEXEC_2008R2_PATH')}" />
+	<property name="env.sqlcmd2012.path" value="${environment::get-variable('SQLCMD_2012_PATH')}" />
+	<property name="env.sqlcmd.path" value="${environment::get-variable('SQLCMD_2008R2_PATH')}" />
+
+	<property name="env.visualstudio2008.devenv.path" value="${environment::get-variable('VISUALSTUDIO_2008_DEVENV_PATH')}"/>
+	<property name="env.ssas2008R2.deploy.tool.path" value="${environment::get-variable('SQL2008R2_SSAS_DEPLOY_UTILITY_PATH')}"/>
+
+	<!-- NodeJS and Modules -->
+	<property name="env.nodejs.path" value="${environment::get-variable('NODEJS_PATH')}" />
+	<property name="env.uglifyjs.path" value="${environment::get-variable('NODEJS_UGLIFYJS_PATH')}" />
+  
+	<!-- Directories -->
+	<property name="env.UnitTestBaseDeploymentLocation" value="${environment::get-variable('UNIT_TEST_DEPLOY_DIR')}" />
+	<property name="env.VS2010FxCopDirectory" value="${environment::get-variable('VS10_FXCOP_DIR')}" />
+	<property name="env.VS2012FxCopDirectory" value="${environment::get-variable('VS12_FXCOP_DIR')}" />
+	<property name="env.NugetPackageRepository" value="${environment::get-variable('NUGET_PACKAGE_REPOSITORY_DIR')}" />
+
+	<if test="${environment::variable-exists('GIT_COMMIT')}">
+		<property name="env.GitCommit" value="${environment::get-variable('GIT_COMMIT')}" />
+
+		<if test="${property::exists('BuildLabel') and not(property::exists('BuildLabel.informational'))}">
+			<property name="BuildLabel.informational" value="${BuildLabel + '.' + string::substring(env.GitCommit, 0, 7)}" />
+			<echo message="Informational BuildLabel is set to ${BuildLabel.informational}" />
+		</if>
+	</if>
+	
+	<property name="env.FxCopDirectory" value="${env.VS2010FxCopDirectory}" /> <!-- Legacy Support for Builds which do not pull in one of the Visual Studio Include Files -->
+
+  <property name="env.BuildJobName" value="${environment::get-variable('JOB_NAME')}" />
+</project>

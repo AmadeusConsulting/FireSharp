@@ -1,0 +1,102 @@
+<?xml version="1.0"?>
+<project name="Amadeus - Common BIDS Targets" default="build" basedir="." xmlns="http://nant.sf.net/release/0.92/nant.xsd">
+
+	<!-- provides bidsSolutionBuild and ssasXmlaGenerate -->
+	<loadtasks assembly="${buildfile.includes.dir}\NAnt\custom_tasks\Amadeus.BI.NAnt.Tasks.dll" failonerror="true" />
+
+	<property name="event" value="compile" />
+	<property name="subscriber" value="bids-build-all-solutions" />
+	<call target="subscribe" />
+
+	<property name="event" value="after-compile" />
+	<property name="subscriber" value="bids-generate-ssas-xmla"/>
+	<call target="subscribe" />
+	<property name="subscriber" value="bids-generate-ssis-manifest"/>
+	<call target="subscribe" />
+
+	<property name="event" value="artifactsDeploying" />
+	<property name="subscriber" value="bids-collect-artifacts" />
+	<call target="subscribe" />
+
+	<target name="bids-build-all-solutions">
+		<foreach item="String" property="bids.sln" in="${bids.solution.list}" delim="," trim="Both" if="${property::exists('bids.solution.list')}">
+			<do>
+				<bidsSolutionBuild
+					devenv="${env.visualstudio2008.devenv.path}"
+					sln="${bids.sln}"
+					config="Release"
+				/>
+			</do>
+		</foreach>
+	</target>
+
+	<target name="bids-generate-ssas-xmla">
+		<foreach item="String" property="ssas.proj" in ="${bids.ssas.project.list}" delim="," trim="Both" if="${property::exists('bids.ssas.project.list')}">
+			<do>
+				<property name="${ssas.proj + '.project.filepath'}" value="${ssas.proj + '\' + ssas.proj + '.dwproj'}"
+					unless="${property::exists(ssas.proj + '.project.filepath')}"/>
+				
+				<ssasXmlaGenerate
+					ssasDeployTool="${env.ssas2008R2.deploy.tool.path}"
+					ssasProj="${property::get-value(ssas.proj + '.project.filepath')}"/>
+			</do>
+		</foreach>
+	</target>
+
+	<target name="bids-generate-ssis-manifest">
+		<foreach item="String" property="ssis.proj" in="${bids.ssis.project.list}" delim="," trim="Both" if="${property::exists('bids.ssis.project.list')}">
+			<do>
+				<property name="${ssis.proj + '.project.filepath'}" 
+					value="${ssis.proj + '\' + ssis.proj + '.dtproj'}"
+					unless="${property::exists(ssis.proj + '.project.filepath')}" />
+			
+				<ssisManifestGenerate
+					projectFile="${property::get-value(ssis.proj + '.project.filepath')}" />
+			</do>
+		</foreach>
+	</target>
+
+
+	<target name="bids-collect-artifacts">
+		<if test="${property::exists('artifactLocation')}">
+			<foreach item="String" property="ssas.proj" in ="${bids.ssas.project.list}" delim="," trim="Both" if="${property::exists('bids.ssas.project.list')}">
+				<do>
+					<property name="${ssas.proj + '.project.filepath'}" 
+						value="${ssas.proj + '\' + ssas.proj + '.dwproj'}"
+						unless="${property::exists(ssas.proj + '.project.filepath')}"/>
+				
+					<property name="ssas.proj.artifactLocation" value="${path::combine(artifactLocation, ssas.proj)}"/>
+					<mkdir dir="${ssas.proj.artifactLocation}"/>
+					<copy todir="${ssas.proj.artifactLocation}">
+						<fileset basedir="${path::combine(path::get-directory-name(property::get-value(ssas.proj + '.project.filepath')), 'bin')}">
+							<include name="*.asdatabase" />
+							<include name="*.configsettings" />
+							<include name="*.deploymentoptions" />
+							<include name="*.deploymenttargets" />
+							<include name="*.xmla"/>
+						</fileset>
+					</copy>
+				</do>
+			</foreach>
+
+			<foreach item="String" property="ssis.proj" in="${bids.ssis.project.list}" delim="," trim="Both" if="${property::exists('bids.ssis.project.list')}">
+				<do>
+					<property name="${ssis.proj + '.project.filepath'}" 
+						value="${ssis.proj + '\' + ssis.proj + '.dtproj'}"
+						unless="${property::exists(ssis.proj + '.project.filepath')}" />
+					
+					<property name="ssis.proj.artifactLocation" 
+					value="${path::combine(artifactLocation, ssis.proj)}" />
+					<mkdir dir="${ssis.proj.artifactLocation}" />
+					<copy todir="${ssis.proj.artifactLocation}">
+						<fileset basedir="${path::combine(path::get-directory-name(property::get-value(ssis.proj + '.project.filepath')), 'bin')}">
+							<include name="*.dtsx" />
+							<include name="*.SSISDeploymentManifest" />
+							<include name="*.dtsConfig" />
+						</fileset>
+					</copy>
+				</do>
+			</foreach>
+		</if>
+	</target>
+</project>

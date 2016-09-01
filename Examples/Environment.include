@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<project name="Jenkins Environment Setup Include" xmlns="http://nant.sf.net/release/0.92/nant.xsd">
+
+	<!-- MSBuild -->
+	<property name="env.msbuild.net40.path" value="C:\Windows\Microsoft.NET\Framework\v4.0.30319\MSBuild.exe" />
+
+	<property name="env.msbuild.path" value="${env.msbuild.net40.path}" /> <!-- Default to the .NET 4.0 Version (which can be overidden in project build files) -->
+
+	<!-- Application locations -->
+	<property name="env.Vs2005_path" value="NOT_AVAILABLE" />
+	<property name="env.NUnitConsoleLocation" value="D:\Program Files (x86)\NUnit 2.6.3\bin\nunit-console.exe" />
+	<property name="env.MbUnitConsoleLocation" value="NOT_AVAILABLE" />
+	<property name="env.SqlCompareLocation" value="NOT_AVAILABLE" />
+	<property name="env.SqlPubWizLocation" value="NOT_AVAILABLE" />
+	<property name="env.MySqlCompareLocation" value="NOT_AVAILABLE" />
+	<property name="env.MySqlDataCompareLocation" value="NOT_AVAILABLE" />
+	<property name="env.SubversionLocation" value="" />
+	<property name="env.YUICompressorPath" value="NOT_AVAILABLE" />
+	<property name="env.vsdbcmd-path" value="NOT_AVAILABLE" />
+	<property name="env.NugetPath" value="D:\NuGet\bin\Nuget.exe" />
+	<property name="env.sqlpackage.path" value="C:\Program Files (x86)\Microsoft SQL Server\110\DAC\bin" />
+	<property name="env.dtexec.path" value="C:\Program Files (x86)\Microsoft SQL Server\100\DTS\Binn\dtexec.exe" />
+	<property name="env.sqlcmd.path" value="C:\Program Files\Microsoft SQL Server\110\Tools\Binn\SQLCMD.EXE" />
+
+	<!-- NodeJS and Modules -->
+	<property name="env.nodejs.path" value="NOT_AVAILABLE" />
+	<property name="env.uglifyjs.path" value="NOT_AVAILABLE" />
+
+	<!-- Directories -->
+	<property name="env.UnitTestBaseDeploymentLocation" value="D:\nant\DeployedTests" />
+	<property name="env.VS2010FxCopDirectory" value="D:\Program Files (x86)\Microsoft Visual Studio 10.0\Team Tools\Static Analysis Tools\FxCop" />
+	<property name="env.VS2012FxCopDirectory" value="D:\Program Files (x86)\Microsoft Visual Studio 11.0\Team Tools\Static Analysis Tools\FxCop" />
+	<property name="env.NugetPackageRepository" value="D:\Nuget\Packages" />
+
+	<property name="env.FxCopDirectory" value="${env.VS2010FxCopDirectory}" /> <!-- Legacy Support for Builds which do not pull in one of the Visual Studio Include Files -->
+</project>

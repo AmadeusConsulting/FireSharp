@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+<project name="Microsoft Visual Studio 2010 Database Project Block" xmlns="http://nant.sf.net/release/0.92/nant.xsd">
+	<!-- 
+		Required Properties
+		
+			copyDatabaseProjectArtifacts:
+				sourceLocation			- Working Copy Directory from which to obtain the Database Project artifacts
+				artifactLocation		- Location where Database Project Artifacts will be deployed
+				dbproj.ProjectName	- Database Project Name (Note: the folder containing the Database Project should be at the root of the Source Location and should have the same name as the Project)
+				
+			deployDatabaseProject:
+				artifactLocation										- The base file path where the deployment will look for the ${dbproj.ProjectName}.dbschema file from which to deploy
+				dbproj.ProjectName									- The name of the Visual Studio Database Project to deploy from
+				dbConnectionString - The connection string to be used to connect to the target deployment database
+		
+		Optional Properties
+		
+		dbproj.skipDeploy		- if set to 'true' the deployDatabaseProject target will be skipped
+		env.Development			- if set to 'true' the deployDatabaseProject target will be skipped
+	-->
+	
+	<!-- Event Wire-up -->
+	<property name="event" value="artifactsDeploying" />
+	<property name="subscriber" value="copyDatabaseProjectArtifacts" />
+	<call target="subscribe" />
+	
+	<property name="event" value="pushing" />
+	<property name="subscriber" value="deployDatabaseProject" />
+	<call target="subscribe" />
+
+	<target name="copyDatabaseProjectArtifacts">
+		<fail 
+			if="${not property::exists('sourceLocation') or not property::exists('artifactLocation') or not property::exists('dbproj.ProjectName')}" 
+			message="Missing required properties! Please check that the following properties are set before calling copyDatabaseProjectArtifacts: sourceLocation, artifactLocation, dbproj.ProjectName"
+		/>
+
+		<mkdir dir="${artifactLocation}\${dbproj.ProjectName}" failonerror="true" />
+
+		<copy todir="${artifactLocation}\${dbproj.ProjectName}">
+			<fileset basedir="${sourceLocation}\${dbproj.ProjectName}\sql\release">
+				<include name="*"/>
+			</fileset>
+		</copy>
+		
+	</target>
+	
+	<target
+			name="deployDatabaseProject"
+			description="Deploy database schema from VS2010 Database Project"
+			unless="${(property::exists('env.Development') and env.Development == 'true') or (property::exists('dbproj.skipDeploy') and dbproj.skipDeploy == 'true')}">
+
+		<fail if="${ not property::exists('env.vsdbcmd-path') or not property::exists('dbConnectionString') or not property::exists('dbproj.ProjectName') or not property::exists('dbproj.TargetDatabase') or not property::exists('artifactLocation')}"
+					message="Missing one or more required properties.  Please ensure that the following properties are set before calling deployDatabaseProject task: env.vsdbcmd-path, artifactLocation, dbConnectionString, dbproj.TargetDatabase, dbproj.ProjectName"
+		/>
+		
+		<!-- see: http://msdn.microsoft.com/en-us/library/dd193283%28v=vs.100%29.aspx#Deployment -->
+		<exec 
+			workingdir="${artifactLocation}\${dbproj.ProjectName}" 
+			program="${env.vsdbcmd-path}" 
+			commandline="/Action:Deploy /p:TargetDatabase=&quot;${dbproj.TargetDatabase}&quot; /p:SqlCommandVariablesFile=&quot;${dbproj.ProjectName}_Database.sqlcmdvars&quot; /ConnectionString:&quot;${dbConnectionString}&quot; /dsp:SQL /dd /ModelFile:&quot;${dbproj.ProjectName}.dbschema&quot;" 
+			/>
+
+	</target>
+
+</project>

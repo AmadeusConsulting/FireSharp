@@ -1,0 +1,7 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<project name="Visual Studio 2015 Property Overrides" xmlns="http://nant.sf.net/release/0.92/nant.xsd">
+	
+  <property name="env.msbuild.path" value="${env.msbuild.14.path}" />
+  <property name="msbuild.nofxcop" value="true"/>
+  
+</project>

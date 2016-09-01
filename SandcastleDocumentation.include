@@ -1,0 +1,96 @@
+<?xml version="1.0"?>
+<project name="SandCastle Documentation Builder Include" xmlns="http://nant.sf.net/release/0.92/nant.xsd">
+	<!-- 
+		Required Properties
+				sandcastle.project.list		- Comma delimited list of Sandcastle Help File Builder project names.
+				*.deploy.location					- Deployment file path for each project in sandcastle.project.list.
+	-->
+
+	<property name="event" value="artifactsDeploying"/>
+	<property name="subscriber" value="sandcastle-archive-documentation" />
+	<call target="subscribe" unless="${skip.deploy.artifacts}" />
+
+	<property name="event" value="pushing" />
+	<property name="subscriber" value="sandcastle-deploy-documentation-website" />
+	<call target="subscribe" />
+
+	<target name="deployDocumentationArtifacts">
+		<echo message="!!!!!!!!!!!!!!! THIS TARGET IS DEPRECATED !!!!!!!!!!!!!!!!!!!!" level="Warning" />
+		<echo message="USE sandcastle-archive-documentation INSTEAD" level="Warning" />
+
+		<!-- For backwards compatability -->
+		<call target="sandcastle-archive-documentation" />
+	</target>
+	
+	<target name="sandcastle-archive-documentation">
+		
+		<foreach item="String" property="sandcastle.project" in="${sandcastle.project.list}" delim="," trim="Both">
+			<do>
+				<property name="sandcastle.artifact.location" value="${artifactLocation}" unless="${property::exists('sandcastle.artifact.location')}"/>
+				<property name="sandcastle.project.outputpath" value="${sandcastle.project}\Help" />
+				
+				<if test="${property::exists(sandcastle.project + '.artifact.location')}">
+					<property name="sandcastle.artifact.location" value="${property::get-value(sandcastle.project + '.artifact.location')}" />
+				</if>
+
+				<if test="${property::exists(sandcastle.project + '.outputpath')}">
+					<property name="sandcastle.project.outputpath" value="${property::get-value(sandcastle.project + '.outputpath')}" />
+				</if>
+				
+				<zip zipfile="${sandcastle.artifact.location}\${sandcastle.project}-${BuildLabel}.zip">
+					<fileset basedir="${sourceLocation}\${sandcastle.project.outputpath}">
+						<include name="**"/>
+					</fileset>
+				</zip>
+			</do>
+		</foreach>
+		
+	</target>
+
+	<target name="pushDocumentationWebsite">
+		<echo message="!!!!!!!!!!!!!!! THIS TARGET IS DEPRECATED !!!!!!!!!!!!!!!!!!!!" level="Warning" />
+		<echo message="USE sandcastle-deploy-documentation-website INSTEAD" level="Warning" />
+		
+		<!-- For backwards compatability -->
+		<call target="sandcastle-deploy-documentation-website" />
+	</target>
+	
+	<target name="sandcastle-deploy-documentation-website">
+		
+		<foreach item="String" property="sandcastle.project" in="${sandcastle.project.list}" delim="," trim="Both">
+			<do>
+				<property name="sandcastle.artifact.location" value="${artifactLocation}" unless="${property::exists('sandcastle.artifact.location')}"/>
+				
+				<if test="${property::exists(sandcastle.project + '.artifact.location')}">
+					<property name="sandcastle.artifact.location" value="${property::get-value(sandcastle.project + '.artifact.location')}" />
+				</if>
+				
+				<property name="documentation.deploy.location.property" value="${sandcastle.project + '.deploy.location'}" />
+
+				<if test="${property::exists(documentation.deploy.location.property)}">
+					<property name="documentation.deploy.destination" value="${property::get-value(documentation.deploy.location.property)}"/>
+					<property name="basedir" value="${sandcastle.artifact.location}" />
+
+					<!-- Clear destination before pushing -->
+					<delete unless="${directory::exists(documentation.deploy.destination)}">
+						<fileset basedir="${documentation.deploy.destination}">
+							<include name="**" />
+						</fileset>
+					</delete>
+
+					<mkdir dir="${documentation.deploy.destination}" unless="${directory::exists(documentation.deploy.destination)}" />
+
+					<!--Unzip the documentation-->
+					<unzip zipfile="${sandcastle.artifact.location}\${sandcastle.project}-${version}.zip" todir="${documentation.deploy.destination}" />
+				</if>
+
+				<if test="${not property::exists(documentation.deploy.location.property)}">
+					<echo level="Warning" message="Property '${documentation.deploy.location.property}' is not set, refusing to deploy '${sandcastle.project}' project!" />
+				</if>
+				
+			</do>
+		</foreach>
+		
+	</target>
+	
+</project>

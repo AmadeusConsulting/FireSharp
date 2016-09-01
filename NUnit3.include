@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<project name="NUnit 3 Property Overrides" xmlns="http://nant.sf.net/release/0.92/nant.xsd">
+	
+  <property name="env.NUnitConsoleLocation" value="${env.nunit3.console.path}" />
+
+  <property name="event" value="nunit.project.console.needsflags"/>
+  <property name="subscriber" value="nunit3-set-project-console-runner-flags"/>
+  <call target="subscribe" />
+
+  <target name="nunit3-set-project-console-runner-flags">
+    <property name="nunit.project.console.runner.flags" value="--result=&quot;${nunit.project.source.location}\${nunit.project}.nunit-results.xml;format=nunit2&quot;" />
+  </target>
+</project>

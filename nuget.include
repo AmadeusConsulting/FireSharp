@@ -1,0 +1,165 @@
+<?xml version="1.0"?>
+<project name="Nuget Tasks Include" xmlns="http://nant.sf.net/release/0.92/nant.xsd">
+	<!-- 
+		Environment Variable Requirements
+			env.NugetPath								- path the the Nuget.exe executable
+			env.NugetPackageRepository	- file path where nuget packages are output
+		
+		Required Properties
+		
+			nuget-package:
+				nuget.package.projects		- comma separated list of projects that should produce a nuget package
+				BuildLabel								- Version Label for the nuget package
+		
+		Optional Properties
+		
+		nuget.sourceLocation				- Base working copy location for the nuspec file ( default = project::get-base-directory() )
+		env.Development			- if set to 'true' the nuget-package target will be skipped
+		projectNames				- projects in this list will be checked to ensure their required packages are installed before compile target is executed
+	-->
+	<property name="nuget.sourceLocation" value="${project::get-base-directory()}" unless="${property::exists('nuget.sourceLocation')}"/>
+	<property name="nuget.nuspec.xmlnamespace" value="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd" unless="${property::exists('nuget.nuspec.xmlnamespace')}" />
+
+	<!-- subscribe to the before-compile event to first install all nuget packages -->
+	<property name="event" value="before-compile" />
+	<property name="subscriber" value="nuget-install-all" />
+	<call target="subscribe" />
+	
+	<!-- subscribe to the artifactsDeployed event to build and publish nuget packages, but only if nuget.package.projects property exists -->
+	<property name="event" value="artifactsDeploying" />
+	<property name="subscriber" value="nuget-package" />
+	<call target="subscribe" if="${property::exists('nuget.package.projects')}" />
+
+	<target name="nuget-package">
+
+		<!-- Event Hook for configuring NuGet Packages -->
+		<property name="event" value="before-nuget-package" />
+		<call target="raiseEvent" />
+		
+		<property name="nuspec.package.version" value="${BuildLabel}" unless="${property::exists('nuspec.package.version')}" />
+		
+		<foreach item="String" property="nuget.projectName" in="${nuget.package.projects}" delim="," trim="Both">
+			<do>
+				<property name="nuget.project.packageversion.propertyname" value="${nuget.projectName}.package.version"/>
+				<property name="${nuget.project.packageversion.propertyname}" value="${nuspec.package.version}" 
+						  unless="${property::exists(nuget.project.packageversion.propertyname)}"/>
+
+				<echo message="Creating NuGet Package for ${nuget.projectName}"/>
+				<echo message="NuGet working directory is ${nuget.sourceLocation}" />
+				<echo message="NuGet Pacakge Version is ${property::get-value(nuget.project.packageversion.propertyname)}"/>
+				<echo message="NuGet Repository Location is ${artifactLocation}"/>
+
+				<xmlpoke file="${nuget.sourceLocation}\${nuget.projectName}\${nuget.projectName}.nuspec"
+								 xpath="/ng:package/ng:metadata/ng:version"
+								 value="${property::get-value(nuget.project.packageversion.propertyname)}" >
+					<namespaces>
+						<namespace prefix="ng" uri="${nuget.nuspec.xmlnamespace}" />
+					</namespaces>
+				</xmlpoke>
+
+				<property name="markdown.readme.file" value="${nuget.sourceLocation}\${nuget.projectName}\README.md"/>
+				
+				<if test="${file::exists(markdown.readme.file)}">
+					<!-- Copy the Markdown Readme to Readme.txt which can be used as the readme displayed when the package is installed -->
+					<copy file="${markdown.readme.file}" tofile="${nuget.sourceLocation}\${nuget.projectName}\readme.txt" overwrite="true" />
+				</if>
+				
+				<!-- ensure the latest NuGet version-->
+				<exec program="${env.NugetPath}">
+					<arg line="update -Self" />
+				</exec>
+				
+				<exec workingdir="${nuget.sourceLocation}\${nuget.projectName}"
+					       verbose="true"
+							program="${env.NugetPath}">
+					<arg value="pack" />
+					<arg file="${nuget.sourceLocation}\${nuget.projectName}\${nuget.projectName}.nuspec" />
+					<arg line="/Verbosity detailed" />
+					<arg value="/OutputDirectory" />
+					<arg file="${artifactLocation}" /> 
+					<environment>
+						<variable name="EnableNuGetPackageRestore" value="true" />
+					</environment>
+				</exec>
+				
+				<if test="${property::exists('nuget.feed.list')}"> 				
+					<!-- Deploy nuget package to Url with API key -->
+					<foreach item="String" property="nuget.feed.name" in="${nuget.feed.list}" delim="," trim="Both">
+						<do>
+							<!-- Feeds are dynamic and setup in the enviroment we expect a URL and api key registered in enviroment to deploy to a feed -->
+							<property name="nuget.feed.url.environment" value="${'NUGET_FEED_URL_' + string::to-upper(nuget.feed.name)}"/>
+							<property name="nuget.feed.apikey.environment" value="${'NUGET_FEED_API_KEY_' + string::to-upper(nuget.feed.name)}"/>
+							
+							<echo message="Checking for ${nuget.feed.url.environment} Property in enviroment"/>
+							<choose>
+								<when test="${environment::variable-exists(nuget.feed.url.environment)}">
+									<property name="env.nuget.feed.url" value="${environment::get-variable(nuget.feed.url.environment)}" />
+								  
+									<echo message="Checking for ${nuget.feed.apikey.environment} Property in enviroment"/>
+									<choose>
+										<when test="${environment::variable-exists(nuget.feed.apikey.environment)}">
+											<property name="env.nuget.feed.apikey" value="${environment::get-variable(nuget.feed.apikey.environment)}" />
+											<!-- Ensure that the nupkg exists -->
+												<choose>
+													<when test="${file::exists(artifactLocation + '\' + nuget.projectName + '.' + property::get-value(nuget.project.packageversion.propertyname) + '.nupkg')}">
+														<echo message="Deploying ${nuget.projectName + '.' + property::get-value(nuget.project.packageversion.propertyname) + '.nupkg'} to ${env.nuget.feed.url}"/>
+														<!-- Deploy the nupkg from the artifacts directory -->
+														<exec workingdir="${nuget.sourceLocation}\${nuget.projectName}"
+																   verbose="true"
+																	program="${env.NugetPath}">
+															<arg value="push" />
+															<arg file="${artifactLocation + '\' + nuget.projectName + '.' + property::get-value(nuget.project.packageversion.propertyname) + '.nupkg'}" />
+															<arg line="/Verbosity detailed" />
+															<arg line="/apikey ${env.nuget.feed.apikey}" />
+															<arg line="/Source ${env.nuget.feed.url}" />
+														</exec>
+													</when>				
+													<otherwise>
+														<echo message="[Nuget Deploy] Could not find nupkg ${artifactLocation + '\' + nuget.projectName + '.' + property::get-value(nuget.project.packageversion.propertyname) + '.nupkg'} That was supposed to be deployed Skipping it!" />
+													</otherwise>
+												</choose>
+										</when>						
+										<otherwise>
+											<echo message="[Nuget Deploy] Could not find enviroment property ${nuget.feed.apikey.environment} containing api key for deployment of ${nuget.projectName} package! Skipping it!" />
+										</otherwise>
+									</choose>
+								</when>						
+								<otherwise>
+									<echo message="[Nuget Deploy] Could not find enviroment property ${nuget.feed.url.environment} containing url for deployment of ${nuget.projectName} package! Skipping it!" />
+								</otherwise>
+							</choose>							
+						</do>
+					</foreach>
+				</if>
+			</do>
+		</foreach>
+	</target>
+
+	<target name="update-nuspec-dependency-version">
+		<xmlpoke file="${nuspec.filepath}"
+						 xpath="/nsp:package/nsp:metadata/nsp:dependencies/nsp:dependency[@id='${nuspec.dependency.packageid}']/@version"
+						 value="${nuspec.dependency.version}" >
+			<namespaces>
+				<namespace prefix="nsp" uri="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd" />
+			</namespaces>
+		</xmlpoke>
+	</target>
+
+	<target name="nuget-install-all">
+		<!-- 
+			Execute NuGet restore command on solutions to ensure required packages are installed prior to compiling
+		-->
+		<foreach item="String" property="solution.file" in="${compile.Solution.list}" delim="," trim="Both" unless="${not property::exists('compile.Solution.list')}" >
+			<do>
+				<echo message="restoring solution packages for ${solution.file} using ${env.NugetPath}"/>
+				<exec program="${env.NugetPath}" verbose="true">
+					<arg value="restore" />
+					<arg file="${sourceLocation}\${solution.file}" />
+					<arg value="-NonInteractive" />
+					<arg value="-Verbosity" />
+					<arg value="detailed" />
+				</exec>
+			</do>
+		</foreach>
+	</target>
+</project>

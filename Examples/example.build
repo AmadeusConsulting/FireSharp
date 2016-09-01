@@ -1,0 +1,127 @@
+<?xml version="1.0"?>
+<project name="YOUR BUILD PROJECT NAME HERE" default="build" basedir="." xmlns="http://nant.sf.net/release/0.92/nant.xsd">
+	<!-- 
+		UNCOMMENT THIS TO SKIP DEPLOYING ANY ARTIFACTS FROM THIS BUILD
+		<property name="skip.deploy.artifacts" value="true" /> 
+	-->
+
+	<!-- Define the path to the included build scripts (Default is a Folder called BuildProcess at the root of the source tree)-->
+	<property name="buildfile.includes.dir" value="${project::get-base-directory()}\BuildProcess" />
+	
+	<!-- LIST OF SOLUTION FILES (INCLUDING THE .SLN EXTENSION), COMMA SEPARATED, WHICH SHOULD BE BUILT AS A PART OF THIS BUILD PROJECT -->
+	<property name="compile.Solution.list" value="YOUR SOLUTION FILE LIST HERE" />
+	
+	<!-- subscribe the same target to the creating website ZIP fileset as well -->
+
+	<!-- General Settings -->
+	<property name="clientName" value="YOUR CLIENT NAME HERE" />
+	<property name="projectNames" value="ALL PROJECT NAMES HERE - COMMA SEPARATED" />
+
+	<!-- Building Blocks -->
+	<include buildfile="${buildfile.includes.dir}\Amadeus.include" /> <!-- This is the main Shared Build Script, Required in all Build Projects -->
+	<include buildfile="${buildfile.includes.dir}\MSBuild.include" /> <!-- The main include file required for building solutions -->
+
+	<!--   Include the build files you need here, depending on the aspects of your project    -->
+	<include buildfile="${buildfile.includes.dir}\Deployment.WebApplication.include" />  <!-- Web Applications --> 
+	<include buildfile="${buildfile.includes.dir}\Database.SsdtProject.include" />   <!-- SSDT Database Applications --> 
+	<include buildfile="${buildfile.includes.dir}\UnitTest.NUnit.include" />    <!-- NUnit Test Projects --> 
+
+	<!-- WEB APPLICATION PROJECTS-->
+	<!--<property name="webApplicationProjectNames" value="" />  COMMA SEPARATED LIST OF WEB APPLICATION PROJECTS - REQUIRES THE Deployment.WebApplication.include SHARED BUILD FILE -->
+	<!--
+	<property name="webApplicationProjectNames" value="" />
+	-->
+
+	<!-- SSDT DATABASE PROJECTS -->
+	<!--<property name="ssdt.project.list" value="" /> COMMA SEPARATED LIST OF SSDT DATABASE PROJECTS - REQUIRES THE Database.SsdtProject.include -->
+	<!--
+	<property name="ssdt.project.list" value="" />
+	-->
+
+	<!-- NUnit -->
+	<!-- <property name="unitTestProjectNames" value="" /> PROVIDE A COMMA SEPARATED LIST OF NUNIT PROJECTS - DON'T FORGET TO INCLUDE THE UnitTest.NUnit.include SHARED BUILD FILE! -->
+	<!--
+	<property name="unitTestProjectNames" value="" />
+	-->
+
+	<!-- AppSetting  Keys - Identify project-specific app setting keys that will be populated using nant properties of the same name -->
+	<!-- <property name="<PROJECT-NAME>.appsetting.keys" value="<COMMA-SEPARATED LIST OF APPSETTING KEYS>" />  -->
+	<!--
+	<property name="" />
+	-->
+
+	<!-- Event Handlers - Attach to events to hook into certain stages in the build process -->
+	
+	<!-- 
+	SUBSCRIBE TO THE ARTIFACTS-DEPLOYING EVENT TO COPY CUSTOM ARTIFACTS TO THE ARTIFACTS DIRECTORY
+	<property name="event" value="artifactsDeploying" />
+	<property name="subscriber" valuer=<YOUR-CUSTOM-TASK> />
+	<call target="subscribe" />
+	-->
+	
+	<!--
+	FOR WEBSITE PROJECTS WHICH NEED TO DEPLOY FILES NOT COMMONLY FOUND IN A WEBSITE FILESET (E.G. EXCEL SPREADSHEETS, UNUSUAL FILE EXTENSIONS, ETC)
+	ADD A CUSTOM TARGET THAT CREATES A PATTERNSET WITH REFID=websitePatterns.patternset.refid AND SET THE APPROPRIATE PROPERTY (SEE BELOW) TO TRUE
+	
+	FOR THE FILE PATTERNS USED TO ARCHIVE THE WEBSITE ARTIFACTS
+	<property name="event" value="creatingWebsiteZipFileSet" />
+	<property name="subscriber" value=<YOUR-CUSTOM-TASK-FOR-CREATING-WEBSITE-PATTERNSETS> />
+	<call target="subscribe" />
+	
+	FOR THE FILE PATTERNS USED TO DEPLOY THE WEBSITE
+	<property name="event" value="creatingWebsiteFileSet"/>
+	<property name="subscriber" value=<YOUR-POSSIBLY-DIFFERENT-CUSTOM-TASK-FOR-CREATING-WEBSITE-PATTERNSET> />
+	<call target="subscribe"/>
+	
+		
+	<target name="YOUR-CUSTOM-TASK-FOR-CREATING-WEBSITE-PATTERNSETS">
+		
+		CREATE A PATTERNSET AND INCLUDE (OR EXCLUDE) YOUR CUSTOM FILE PATTERNS
+		
+		<patternset id="websitePatterns.patternset.refid"> <=== NOTE THE REFID NAME
+			<include name="**/*.xlsx"/>
+			<include name="Content/**"/>
+		</patternset>
+
+		SET THIS PROPERTY TO TRUE TO USE THE ABOVE PATTERN SET FOR ARCHIVING THE WEBSITE ARTIFACTS
+		<property name="websiteZipPatterns.patternset.byrefid" value="true" />
+
+		SET THIS PROPERTY TO TRUE TO USE THE PATTERN SET FOR DEPLOYING THE WEBSITE
+		<property name="websiteFilePatterns.patternset.byrefid" value="true" />
+
+	</target>
+	-->
+
+
+	<!-- Project-specific targets -->
+
+	<target name="deploy-integration">
+		
+	<!--  SETTING THE VERSION TO PUSH  --> 
+	<property name="version" value="${BuildLabel}" /> <!-- BUILD LABEL is a Nant Property passed in via Jenkins E.g. BuildLabel=0.1.$SVN_REVISION.$BUILD_NUMBER  (See Advanced under Nant Build Step) --> 
+
+	<!-- PUSHING WEB APPLICATIONS
+	<property name="<WEB-APPLICATION-PROJECT-NAME>.DeploymentLocation" value="\\acd-web-net4\projects\<YOUR-PROJECT-NAME>\<YOUR-DEPLOYMENT-ENVIRONMENT(E.G. INTEGRATION)>"/>
+	<property name="<WEB-APPLICATION-PROJECT-NAME>.customErrorsMode" value="Off" /> SET THIS VALUE TO KEEP CUSTOM ERRORS MODE OFF IN A TESTING/INTEGRATION ENVIRONMENT
+	<property name="<WEB-APPLICATION-PROJECT-NAME>.connectionstring.list" value=<YOUR-CONNECTION-STRING-LIST: COMMA SEPARATED, IN THE FORM OF CONNECTION-STRING-NAME=CONNECTION-STRING-VALUE> /> --> 
+
+	<property name="WEB-APPLICATION-PROJECT-NAME.DeploymentLocation" value=""/>
+	<property name="WEB-APPLICATION-PROJECT-NAME.customErrorsMode" value="Off" />
+	<property name="WEB-APPLICATION-PROJECT-NAME.connectionstring.list" value="" />
+
+	<!--  PUSHING DATABASE PROJECTS
+	<property name="<SSDT-DATABASE-PROJECT-NAME>.publish.connection" value=<CONNECTION-STRING-FOR-PUBLISHING-DATABASE> />
+	<property name="<SSDT-DATABASE-PROJECT-NAME>.publish.properties" value=<CUSTOM-SSDT-PUBLISH-PROPERTIES-TO-BE-PASSED-TO-SQLPACKAGE.EXE> /> --> 
+
+	<property name="SSDT-DATABASE-PROJECT-NAME.publish.connection" value="" />
+	<property name="SSDT-DATABASE-PROJECT-NAME.publish.properties" value="" />
+		
+	<!--  APPSETTINGS - CREATE PROPERTIES WITH NAMES THAT MATCH APPSETTING KEYS (AS LISTED ABOVE) WITH VALUES EQUAL TO WHAT YOU'D LIKE TO SET THE APPSETTINGS TO
+	      THE CONFIG FILE FOR THE PROJECTS WITH <PROJECT>.apsetting.keys PROPERTIES DEFINED ABOVE WILL BE UPDATED WITH THESE PROPERTY VALUES
+	      <property name="my.app.setting1" value="my.app.setting.value" /> --> 
+
+	<call target="push" /> <!-- PUSH THE PROJECT ! --> 
+
+	</target>
+	
+</project>

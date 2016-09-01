@@ -1,0 +1,515 @@
+<?xml version="1.0"?>
+<project name="Web Application Deployment block" xmlns="http://nant.sf.net/release/0.92/nant.xsd">
+	<!-- 
+		Required Properties
+		
+		sourceLocation 				- The base file path of the source of the projects. (Defined by deployArtifacts)
+		webApplicationProjectNames		- Comma delimited list of web application project names.
+		*.DeploymentLocation			- Deployment file path for each project in webApplicationProjectNames.
+	-->
+
+	<!-- Event Wire-up -->
+	<property name="event" value="artifactsDeploying" />
+	<property name="subscriber" value="deployWebApplications" />
+	<call target="subscribe" unless="${skip.deploy.artifacts == 'true'}" />
+
+	<echo message="[Deployment.WebApplication] skip.deploy.artifacts = ${skip.deploy.artifacts} ... artifacts will not be deployed" if="${skip.deploy.artifacts == 'true'}" />
+
+	<property name="event" value="pushing" />
+	<property name="subscriber" value="pushWebApplications" />
+	<call target="subscribe" />
+
+
+	<!-- Event Handlers -->
+	<target name="deployWebApplications">
+
+		<foreach item="String" in="${webApplicationProjectNames}" delim="," trim="Both" property="webApplicationProject">
+			<do>
+				<property name="basedir" value="${sourceLocation}\${webApplicationProject}" />
+
+				<call target="createWebsiteZipFileSet" />
+
+				<call target="archive-website-artifacts"/>
+			</do>
+		</foreach>
+	</target>
+
+	<target name="archive-website-artifacts">
+		<!--Zip non-config files-->
+		<zip zipfile="${artifactLocation}\${webApplicationProject}-${BuildLabel}.zip" verbose="true">
+			<fileset refid="WebsiteZipFileSet"/>
+		</zip>
+
+		<!--Copy related config files to artifact location-->
+		<copy todir="${artifactLocation}\${webApplicationProject}">
+			<fileset basedir="${sourceLocation}\${webApplicationProject}">
+				<include name="**.config" />
+				<!-- license files -->
+				<include name="**\*.lic" />
+			</fileset>
+		</copy>
+
+		<!-- Update the Web.config at the artifact location -->
+		<property name="config.filepath" value="${artifactLocation}\${webApplicationProject}\Web.config" />
+
+		<!-- For speed of code execution, memory usage, and file caching -->
+		<boo>
+			<include path="${buildfile.includes.dir}\Boo\Scripts\XmlObject.boo" />
+			<code>
+				<![CDATA[
+					import Boo.XmlObject
+					
+					web_application_name = Project.Properties["webApplicationProject"]
+					config_file = Project.Properties["config.filepath"]
+					
+					print("Setting compilation debug to false for ${web_application_name} ...")
+					
+					def set_compilation_debug(configuration as XmlObject):
+						system_web as XmlObject = null
+						if Project.Properties.Contains(web_application_name + ".webconfig.systemweb.path"):
+							print("Property ${web_application_name}.webconfig.systemweb.path exists and will be used to determine the path to the system.web node in the web.config file")
+							last_path = configuration
+							for path in @/,/.Split(Project.Properties[web_application_name + ".webconfig.systemweb.path"]):
+								print("Next path in the ${web_application_name}.webconfig.systemweb.path property = ${path}")
+								last_path = last_path.Ensure(path)[0]
+							system_web = last_path
+						else:
+							print("using standard system.web path (/configuration/system.web)")
+							system_web = configuration.Ensure("system.web")[0]
+						
+						compilation = system_web.Ensure("compilation")[0]
+						compilation["debug"] = "false"
+					
+					XmlObject.edit_xml_file(config_file, { x as XmlObject | set_compilation_debug(x) }, print)
+				]]>
+			</code>
+		</boo>
+		
+	</target>
+
+	<target name="pushWebApplications">
+
+		<foreach item="String" in="${webApplicationProjectNames}" delim="," trim="Both" property="webApplicationProject">
+			<do>
+				<property name="deploymentLocationProperty" value="${webApplicationProject + '.DeploymentLocation'}" />
+
+				<if test="${property::exists(deploymentLocationProperty)}">
+					<property name="websiteDeploymentLocation" value="${property::get-value(deploymentLocationProperty)}"/>
+					<property name="${webApplicationProject + '.webconfig.path'}" value="${websiteDeploymentLocation + '\Web.config'}" unless="${property::exists(webApplicationProject + '.webconfig.path')}" />
+
+					<echo message="Pushing Web Application ${webApplicationProject} to Deployment Location ${websiteDeploymentLocation}" />
+					
+					<!-- Create destination before pushing -->
+					<mkdir dir="${websiteDeploymentLocation}" if="${not directory::exists(websiteDeploymentLocation)}" />
+
+					<property name="basedir" value="${websiteDeploymentLocation}" />
+					
+					<echo message="WebsiteFileSet basedir has been set to ${basedir}" />
+
+					<call target="createWebsiteFileSet" />
+
+					<echo message="Deleting build artifacts existing website deployment at ${basedir}..." />
+					
+					<delete verbose="true">
+						<fileset refid="WebsiteFileSet" />
+					</delete>
+					
+					<property name="basedir" value="${artifactLocation}\${webApplicationProject}" />
+
+					<echo message="basedir has been set to artifactLocation\webApplicationProject = ${basedir}" />
+					
+					<!--Unzip the artifacts-->
+					<unzip zipfile="${artifactLocation}\${webApplicationProject}-${version}.zip" todir="${websiteDeploymentLocation}" overwrite="true" />
+
+					<!--Copy the configuration files-->
+					<copy todir="${websiteDeploymentLocation}" overwrite="false">
+						<fileset basedir="${artifactLocation}\${webApplicationProject}">
+							<include name="**.config"/>
+							<exclude name="**.release.config" />
+							<exclude name="**.debug.config" />
+							<exclude name="Web.config" if="${file::exists(path::combine(websiteDeploymentLocation, 'Web.config'))}" />
+						</fileset>
+					</copy>
+
+					<if test="${property::exists(webApplicationProject + '.connectionstring.list')}">
+						<property name="connectionstring.configfile" value="${websiteDeploymentLocation}\web.config" />
+						<property name="connectionstring.list.input" value="${property::get-value(webApplicationProject + '.connectionstring.list')}" />
+						<call target="update-connectionstring-list" />
+					</if>
+
+					<!-- Set Custom Errors Mode (defaults to On) -->
+					<property name="customErrorsModeProperty" value="${webApplicationProject + '.customErrorsMode'}"/>
+
+					<choose>
+						<when test="${property::exists(customErrorsModeProperty)}">
+							<echo message="Using custom errors mode setting: ${property::get-value(customErrorsModeProperty)}" />
+							<property name="customErrorsMode" value="${property::get-value(customErrorsModeProperty)}" />
+						</when>
+						<otherwise>
+							<echo message="property '${customErrorsModeProperty}' does not exist, defaulting to setting customErrorsMode to 'On'" />
+							<property name="customErrorsMode" value="On" />
+						</otherwise>
+					</choose>
+
+					<!-- Set the configuration/system.web/compilation/@debug (defaults to false) -->
+					<property name="compilationDebugProperty" value="${webApplicationProject + '.compilationDebug'}"/>
+
+					<choose>
+						<when test="${property::exists(compilationDebugProperty)}">
+							<echo message="Using compilation debug setting: ${property::get-value(compilationDebugProperty)}" />
+							<property name="compilationDebug" value="${property::get-value(compilationDebugProperty)}" />
+						</when>
+						<otherwise>
+							<echo message="property '${compilationDebugProperty}' does not exist, defaulting to setting compilation debug to 'false'" />
+							<property name="compilationDebug" value="false" />
+						</otherwise>
+					</choose>
+
+					<boo>
+						<include path="${buildfile.includes.dir}\Boo\Scripts\XmlObject.boo" />
+						<code>
+							<![CDATA[
+								import Boo.XmlObject
+								
+								web_application_name = Project.Properties["webApplicationProject"]
+								file_path = Project.Properties[web_application_name + ".webconfig.path"]
+								mode = Project.Properties["customErrorsMode"]
+								debug = Project.Properties["compilationDebug"]
+								
+								print("Updating custom errors mode and compilation.debug setting for ${web_application_name} ...")
+								
+								def set_custom_error_and_compilation_debug(configuration as XmlObject):
+									system_web as XmlObject = null
+									if Project.Properties.Contains(web_application_name + ".webconfig.systemweb.path"):
+										print("Property ${web_application_name}.webconfig.systemweb.path exists and will be used to determine the path to the system.web node in the web.config file")
+										last_path = configuration
+										for path in @/,/.Split(Project.Properties[web_application_name + ".webconfig.systemweb.path"]):
+											print("Next path in the ${web_application_name}.webconfig.systemweb.path property = ${path}")
+											last_path = last_path.Ensure(path)[0]
+										system_web = last_path
+									else:
+										system_web = configuration.Ensure("system.web")[0]
+									custom_errors as XmlObject = system_web.Ensure("customErrors")[0]
+									custom_errors["mode"] = mode
+	
+									compilation = system_web.Ensure("compilation")[0]
+									compilation["debug"] = debug
+
+								XmlObject.edit_xml_file(file_path, { x as XmlObject | set_custom_error_and_compilation_debug(x) }, print)
+							]]>
+						</code>
+					</boo>
+
+				</if>
+
+        <if test="${not ( property::exists(deploymentLocationProperty) )}">
+          
+          <echo message="MISSING DEPLOYMENT LOCATION PROPERTY FOR WEB PROJECT ${webApplicationProject}  ... Project will not be pushed!" />
+          
+        </if>
+
+			</do>
+
+		</foreach>
+
+		<call target="update-webapp-appsettings" />
+
+	</target>
+
+	<target name="update-webapp-appsettings">
+		<!--
+			Updates the appsettings specified by <Web.Application.Name>.appsettings.keys (comma delimited) with the values specified by propertes with the keys as names
+			
+			Required Properties:
+				* <Web.Application.Name>.appsettings.keys - comma delimited list of AppSetting Keys
+				* <Web.Application.Name>.webconfig.path - File path to the Web.config file for the web.site
+				* <AppSettingKey> - For each AppSetting key in the <Web.Application.Name>.appsettings.keys list, a corresponsing <AppSettingKey> proeprty containing the value for the AppSetting
+		-->
+		<echo message="${'Applying AppSettings for all of the following web projects: ' + webApplicationProjectNames }" />
+		<foreach item="String" property="webapp.name" in="${webApplicationProjectNames}" delim="," trim="Both">
+			<do>
+        <if test="${property::exists(webapp.name + '.webconfig.path')}">
+          <echo message="Using path from ${webapp.name + '.webconfig.path'} variable = ${property::get-value(webapp.name + '.webconfig.path')}" />
+        </if>
+				<if test="${not property::exists(webapp.name + '.webconfig.path') and property::exists(webapp.name + '.DeploymentLocation')}">
+					<!-- Default Web.config Path, if we know the deployment location -->
+					<property name="${webapp.name + '.webconfig.path'}" value="${property::get-value(webapp.name + '.DeploymentLocation')}\Web.config" />
+					<echo message="Web Config Path for ${webapp.name} set by convention of deploymentlocation\web.config" />
+				</if>
+				<if test="${property::exists(webapp.name + '.appsetting.keys') and property::exists(webapp.name + '.webconfig.path')}">
+					<property name="config.filepath" value="${property::get-value(webapp.name + '.webconfig.path')}" />
+					<echo message="${'Setting appsetting values for ' + webapp.name + '...'}" />
+					<foreach item="String" property="appsetting.key" in="${property::get-value(webapp.name + '.appsetting.keys')}" delim="," trim="Both">
+						<do>
+							<!-- Default to blank value -->
+							<property name="webapp.appsetting.value" value=""/>
+
+							<!-- Look for global appsetting value (i.e. property with the same name as the appsetting key) -->
+							<if test="${property::exists(appsetting.key)}">
+								<property name="webapp.appsetting.value" value="${property::get-value(appsetting.key)}" />
+							</if>
+							
+							<!-- Look for app-specific setting (property named with name of project prepended to appsetting key) -->
+							<if test="${property::exists(webapp.name + '.' + appsetting.key)}">
+								<property name="webapp.appsetting.value" value="${property::get-value(webapp.name + '.' + appsetting.key)}" />
+							</if>
+							
+							<property name="appsetting.key" value="${appsetting.key}" />
+							<property name="appsetting.value" value="${webapp.appsetting.value}" />
+							<call target="update-appsetting" />
+						</do>
+					</foreach>
+				</if>
+				<echo message="${'Failed setting AppSettings for ' + webapp.name + '. Missing one or both of the following properties: ' + webapp.name + '.appsetting.keys, ' + webapp.name + '.webconfig.path'}"
+							unless="${property::exists(webapp.name + '.appsetting.keys') and property::exists(webapp.name + '.webconfig.path')}" />
+			</do>
+		</foreach>
+	</target>
+
+	<target
+	  name="createWebsiteZipFileSet"
+	  description="Creates a fileset for common website files that need to be deployed with ID 'WebsiteZipFileSet'"
+	  if="${property::exists('basedir')}">
+
+		<!-- allow for adding additional include/exclude patternsets -->
+		<property name="event" value="creatingWebsiteZipFileSet" />
+		<call target="raiseEvent" />
+
+		<!--Web.config is specifically not here to prevent accidental deployment of development settings to production environments-->
+		<property name="excludeWebConfig" value="true" />
+		<call target="createWebsiteFilePatternSet" />
+
+		<choose>
+			<when test="${property::exists('websiteZipPatterns.file')}">
+				<echo message="Adding custom web zipfileset patterns from ${websiteZipPatterns.file}..." />
+				<patternset id="additionalWebsiteZipPatternSet" >
+					<includesfile name="${websiteZipPatterns.file}" />
+				</patternset>
+			</when>
+			<when test="${property::exists('websiteZipPatterns.include')}">
+				<echo message="Adding custom web zipfileset include pattern &quot;${websiteZipPatterns.include}&quot; ..." />
+				<patternset id="additionalWebsiteZipPatternSet">
+					<include name="${websiteZipPatterns.include}" />
+				</patternset>
+			</when>
+			<when test="${property::exists('websiteZipPatterns.patternset.byrefid')}">
+				<echo message="Adding custom web zipfile patternset with id=websitePatterns.patternset.refid ..." />
+				<patternset id="additionalWebsiteZipPatternSet">
+					<patternset refid="websitePatterns.patternset.refid" />
+				</patternset>
+			</when>
+			<otherwise>
+				<patternset id="additionalWebsiteZipPatternSet">
+					<!-- Empty PatternSet -->
+				</patternset>
+			</otherwise>
+		</choose>
+
+		<zipfileset id="WebsiteZipFileSet" basedir="${basedir}">
+			<patternset refid="websiteFilePatternSet" />
+			<patternset refid="additionalWebsiteZipPatternSet" />
+		</zipfileset>
+	</target>
+
+	<target
+	  name="createWebsiteFileSet"
+	  description="Creates a fileset for common website files that need to be deployed with ID 'WebsiteFileSet'"
+	  if="${property::exists('basedir')}">
+
+		<property name="event" value="creatingWebsiteFileSet" />
+		<!-- allow for adding additional include/exclude patternsets -->
+		<call target="raiseEvent" />
+
+		<property name="excludeWebConfig" value="true" unless="${property::exists('excludeWebConfig')}" />
+		<call target="createWebsiteFilePatternSet" />
+
+		<choose>
+			<when test="${property::exists('websiteFilePatterns.file')}">
+				<echo message="Adding custom web fileset patterns from ${websiteFilePatterns.file}..." />
+				<patternset id="additionalWebsiteFilePatternSet" >
+					<includesfile name="${websiteFilePatterns.file}" />
+				</patternset>
+			</when>
+			<when test="${property::exists('websiteFilePatterns.include')}" >
+				<echo message="Adding custom web fileset include pattern &quot;${websiteFilePatterns.include}&quot; ..." />
+				<patternset id="additionalWebsiteFilePatternSet">
+					<include name="${websiteFilePatterns.include}" />
+				</patternset>
+			</when>
+			<when test="${property::exists('websiteFilePatterns.patternset.byrefid')}">
+				<echo message="Adding custom web file patternset with id=websitePatterns.patternset.refid ..." />
+				<patternset id="additionalWebsiteFilePatternSet">
+					<patternset refid="websitePatterns.patternset.refid" />
+				</patternset>
+			</when>
+			<otherwise>
+				<echo message="Using Default web file patternset ..." />
+				<patternset id="additionalWebsiteFilePatternSet">
+					<!-- Empty PatternSet -->
+				</patternset>
+			</otherwise>
+		</choose>
+
+		<fileset id="WebsiteFileSet" basedir="${basedir}">
+			<patternset refid="websiteFilePatternSet" />
+			<patternset refid="additionalWebsiteFilePatternSet" />
+		</fileset>
+	</target>
+
+	<target name="createWebsiteFilePatternSet">
+		<patternset id="websiteFilePatternSet">
+			<!-- Subversion Files -->
+			<exclude name="**\_svn" />
+			<exclude name="**\.svn" />
+
+			<!--Static content files-->
+			<include name="**\*.css" />
+			<include name="**\*.htc" />
+			<include name="**\*.htm" />
+			<include name="**\*.html" />
+			<include name="**\*.js" />
+			<include name="**\*.htc" />
+			<include name="**\*.browser" />
+			<include name="**\*.xml" />
+			<include name="**\*.xsd" />
+			<include name="**\*.xsl" />
+			<include name="**\*.xslt" />
+			<include name="**\*.skin" />
+			<include name="**\*.swf" />
+			<include name="**\*.tdf" />
+			<include name="**\*.rdlc" />
+			<include name="**\*.xap" />
+
+			<!-- Images -->
+			<include name="**\*.bmp" />
+			<include name="**\*.gif" />
+			<include name="**\*.GIF" />
+			<include name="**\*.ico" />
+			<include name="**\*.jpg" />
+			<include name="**\*.JPG" />
+			<include name="**\*.png" />
+			<include name="**\*.svg" />
+
+			<!-- Documents -->
+			<include name="**\*.pdf" />
+			
+			<!-- Fonts -->
+			<include name="**\*.woff" />
+			<include name="**\*.ttf" />
+			<include name="**\*.eot" />
+			
+			<!-- ASP.NET files -->
+			<include name="**\*.asax" />
+			<include name="**\*.ascx" />
+			<include name="**\*.ashx" />
+			<include name="**\*.asmx" />
+			<include name="**\*.aspx" />
+			<include name="**\*.cshtml" />
+			<include name="bin\**\*.dll" />
+			<include name="**\*.Master" />
+			<include name="**\*.master" />
+			<include name="**\*.resx" />
+			<include name="**\*.sitemap" />
+			<include name="**\Web.config" unless="${property::exists('excludeWebConfig') and property::get-value('excludeWebConfig') == 'true'}" />
+			<exclude name="**\Web.config" if="${property::exists('excludeWebConfig') and property::get-value('excludeWebConfig') == 'true'}" />
+			<include name="**\*.svc" />
+		</patternset>
+	</target>
+
+	<!-- Compressing JS and CSS -->
+	<target
+		name="minifyFile"
+		description="Runs the YUI Compressor on a specified JavaScript or CSS file, replacing the original with the compressed version.">
+		<exec program="java">
+			<arg value="-jar" />
+			<arg value="C:\Program Files\YUICompressor\yuicompressor-2.4.2.jar" />
+			<arg value="-o" />
+			<arg file="${targetFileName}" />
+			<arg line="--nomunge --charset utf-8 --line-break 100" />
+			<arg file="${targetFileName}" />
+		</exec>
+	</target>
+
+	<target name="uglifyjs"
+					description="Run uglifyjs against a fileset containing javascript files to minify or beautify javascript">
+		<!--
+		node uglifyjs input1.js [input2.js ...] [options]
+		Use a single dash to read input from the standard input.
+
+		NOTE: by default there is no mangling/compression.
+		Without [options] it will simply parse input files and dump the AST
+		with whitespace and comments discarded.  To achieve compression and
+		mangling you need to use `-c` and `-m`.
+
+		Options:
+			<dash><dash>source-map       Specify an output file where to generate source map.
+																																						[string]
+			<dash><dash>source-map-root  The path to the original source to be included in the
+												 source map.                                        [string]
+			<dash><dash>in-source-map    Input source map, useful if you're compressing JS that was
+												 generated from some other original code.
+			-p, <dash><dash>prefix       Skip prefix for original filenames that appear in source
+												 maps. For example -p 3 will drop 3 directories from file
+												 names and ensure they are relative paths.
+			-o, <dash><dash>output       Output file (default STDOUT).
+			-b, <dash><dash>beautify     Beautify output/specify output options.            [string]
+			-m, <dash><dash>mangle       Mangle names/pass mangler options.                 [string]
+			-r, <dash><dash>reserved     Reserved names to exclude from mangling.
+			-c, <dash><dash>compress     Enable compressor/pass compressor options. Pass options
+												 like -c hoist_vars=false,if_return=false. Use -c with no
+												 argument to use the default compression options.   [string]
+			-d, <dash><dash>define       Global definitions                                 [string]
+			<dash><dash>comments         Preserve copyright comments in the output. By default this
+												 works like Google Closure, keeping JSDoc-style comments
+												 that contain "@license" or "@preserve". You can optionally
+												 pass one of the following arguments to this flag:
+												 - "all" to keep all comments
+												 - a valid JS regexp (needs to start with a slash) to keep
+												 only comments that match.
+												 Note that currently not *all* comments can be kept when
+												 compression is on, because of dead code removal or
+												 cascading statements into sequences.               [string]
+			<dash><dash>stats            Display operations run time on STDERR.            [boolean]
+			<dash><dash>acorn            Use Acorn for parsing.                            [boolean]
+			<dash><dash>spidermonkey     Assume input fles are SpiderMonkey AST format (as JSON).
+																																					 [boolean]
+			<dash><dash>self             Build itself (UglifyJS2) as a library (implies
+												 <dash><dash>wrap=UglifyJS <dash><dash>export-all)                     [boolean]
+			<dash><dash>wrap             Embed everything in a big function, making the "exports"
+												 and "global" variables available. You need to pass an
+												 argument to this option to specify the name that your
+												 module will take when included in, say, a browser.
+																																						[string]
+			<dash><dash>export-all       Only used when <dash><dash>wrap, this tells UglifyJS to add code to
+												 automatically export all globals.                 [boolean]
+			<dash><dash>lint             Display some scope warnings                       [boolean]
+			-v, <dash><dash>verbose      Verbose                                           [boolean]
+			-V, <dash><dash>version      Print version number and exit.                    [boolean]
+		-->
+
+		<property name="uglifyjs.options" value="" unless="${property::exists('uglifyjs.options')}" />
+
+		<foreach item="File" property="jsfile">
+			<in>
+				<items refid="uglifyjs.fileset" />
+			</in>
+			<do>
+				<echo message="Calling uglifyjs on ${jsfile}..." />
+
+				<!-- Output to a temp file and copy over the original -->
+				<property name="uglify.output" value="${jsfile + '.tmp'}" />
+				<exec program="${env.nodejs.path}" failonerror="true">
+					<arg file="${env.uglifyjs.path}" />
+					<arg file="${jsfile}" />
+					<arg line="${uglifyjs.options}" />
+					<arg value="-o" />
+					<arg file="${uglify.output}" />
+					<arg value="-v" />
+				</exec>
+
+				<echo message="Moving temp file ${uglify.output} to ${jsfile}" level="Verbose" />
+				<move file="${uglify.output}" tofile="${jsfile}" overwrite="true" />
+			</do>
+		</foreach>
+	</target>
+</project>

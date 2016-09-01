@@ -1,0 +1,284 @@
+<?xml version="1.0"?>
+<project name="Windows Application Deployment block" xmlns="http://nant.sf.net/release/0.92/nant.xsd">
+	<!-- 
+		Required Properties
+		
+		sourceLocation 				- The base file path of the source of the projects. (Defined by deployArtifacts)
+		windowsapplication.project.list	- Comma delimited list of windows application project names.
+		*.DeploymentLocation			- Deployment file path for each project in windowsApplicationProjectNames.
+	-->
+
+	<!-- Event Wire-up -->
+	<property name="event" value="artifactsDeploying" />
+	<property name="subscriber" value="archive-windowsapplication-artifacts" />
+	<call target="subscribe" />
+
+	<property name="event" value="pushing" />
+	<property name="subscriber" value="pushWindowsApplications" />
+	<call target="subscribe" />
+
+
+	<target name="deployWindowsApplications">
+		<!-- For backwards-compatability -->
+		<call target="archive-windowsapplication-artifacts" />
+	</target>
+
+	<!-- Event Handlers -->
+	<target name="archive-windowsapplication-artifacts">
+		<if test="${property::exists('windowsApplicationProjectNames')}" >
+			<!-- Backwards compatability with the old name for this property -->
+			<property name="windowsapplication.project.list" value="${property::get-value('windowsApplicationProjectNames')}" />
+		</if>
+
+		<foreach item="String" in="${windowsapplication.project.list}" delim="," trim="Both" property="windowsapplication.project">
+			<do>
+				<!-- allow for adding additional include/exclude patternsets -->
+				<property name="event" value="creating.windowsapplication.artifactfileset" />
+				<call target="raiseEvent" />
+
+				<property name="artifact.basedir" value="${sourceLocation}\${windowsapplication.project}\bin\Release" />
+
+				<if test="${ property::exists(windowsapplication.project + '.artifact.basedir') }" >
+					<property name="artifact.basedir" value="${property::get-value(windowsapplication.project + '.artifact.basedir')}" />
+				</if>
+
+				<call target="create-application-artifact-fileset" />
+
+				<!--Zip non-config files-->
+				<zip zipfile="${artifactLocation}\${windowsapplication.project}-${BuildLabel}.zip">
+					<fileset refid="applicationartifacts.fileset" />
+				</zip>
+
+				<!--Copy related config files to artifact location-->
+				<copy todir="${artifactLocation}\${windowsapplication.project}">
+					<fileset basedir="${artifact.basedir}">
+						<include name="**.config" />
+					</fileset>
+				</copy>
+			</do>
+		</foreach>
+	</target>
+
+	<target name="pushWindowsApplications">
+
+		<echo if="${not property::exists('windowsapplication.project.list')}" message="Property windowsapplication.project.list does not exist! No Windows Application Projects will be pushed!" />
+
+		<foreach item="String" in="${windowsapplication.project.list}" delim="," trim="Both" property="windowsapplication.project.name" if="${property::exists('windowsapplication.project.list')}">
+			<do>
+
+				<echo message="Pushing Windows Application ${windowsapplication.project.name}"/>
+				
+				<property name="deploymentLocationProperty" value="${windowsapplication.project.name + '.DeploymentLocation'}" />
+
+				<if test="${property::exists(deploymentLocationProperty)}">
+					<property name="applicationDeploymentLocation" value="${property::get-value(deploymentLocationProperty)}"/>
+					<property name="basedir" value="${artifactLocation}\${windowsapplication.project.name}" />
+					
+					<mkdir dir="${applicationDeploymentLocation}" />
+
+					<trycatch 
+						if="${not property::exists(windowsapplication.project.name + '.artifacts.clearonpush') or property::get-value(windowsapplication.project.name + '.artifacts.clearonpush') != 'true'}">
+						<try>
+							<!-- Clear the existing artifacts -->
+							<echo message="Clearing existing artifacts at deployment location for ${windowsapplication.project.name}..." />
+							<property name="artifact.basedir" value="${applicationDeploymentLocation}" />
+							<call target="create-applicationartifacts-patternset" />
+							<delete>
+								<fileset basedir="${applicationDeploymentLocation}">
+									<patternset refid="applicationartifacts.patternset" />
+									<patternset refid="applicationartifacts.patternset.dynamic" />
+								</fileset>
+							</delete>
+						</try>
+						<catch property="failure.message">
+							<echo message="Failed deleting existing artifacts: ${failure.message}. Will continue by attempting to overwrite..." />
+						</catch>
+					</trycatch>
+
+					<property name="windowsapplication.configfile" value="${windowsapplication.project.name + '.exe.config'}" />
+
+					<if test="${property::exists(windowsapplication.project.name + '.configfile')}">
+						<property name="windowsapplication.configfile" value="${property::get-value(windowsapplication.project.name + '.configfile')}" />
+					</if>
+
+					<!--Unzip the artifacts-->
+					<unzip zipfile="${artifactLocation}\${windowsapplication.project.name}-${version}.zip" todir="${applicationDeploymentLocation}" />
+
+					<property name="windowsapplication.configfile.path"
+										value="${path::combine(applicationDeploymentLocation, windowsapplication.project.name + '.exe.config' )}" />
+
+					<echo message="Config File for ${windowsapplication.project.name} does not exist ... copying version from artifacts directory"
+								if="${not file::exists( windowsapplication.configfile.path )}"/>
+
+					<!--Copy the configuration files-->
+					<copy todir="${applicationDeploymentLocation}" if="${not file::exists( windowsapplication.configfile.path )}">
+						<fileset basedir="${artifactLocation}\${windowsapplication.project.name}">
+							<include name="**.config" />
+						</fileset>
+					</copy>
+
+					<property name="${windowsapplication.project.name}.configfile.path" value="${windowsapplication.configfile.path}" />
+
+					<!-- Update Connection Strings in Application Config File -->
+					<if test="${property::exists(windowsapplication.project.name + '.connectionstring.list')}">
+						<property name="connectionstring.configfile" value="${applicationDeploymentLocation}\${windowsapplication.configfile}" />
+						<property name="connectionstring.list.input" value="${property::get-value(windowsapplication.project.name + '.connectionstring.list')}" />
+						<call target="update-connectionstring-list" />
+					</if>
+				</if>
+
+			</do>
+		</foreach>
+
+		<call target="update-windowsapplication-appsettings" />
+
+	</target>
+
+	<target
+	  name="create-application-artifact-fileset"
+	  description="Creates a fileset for windows application files that need to be deployed with ID 'applicationartifacts.fileset'"
+	  if="${property::exists('artifact.basedir')}">
+
+		<call target="create-applicationartifacts-patternset" />
+		
+		<zipfileset id="applicationartifacts.fileset" basedir="${artifact.basedir}">
+			<patternset refid="applicationartifacts.patternset" />
+			<patternset refid="applicationartifacts.patternset.dynamic" />
+		</zipfileset>
+	</target>
+
+	<target name="create-applicationartifacts-patternset">
+
+		<!--Default to excluding the App.config here to prevent accidental deployment of development settings to production environments-->
+		<property name="exclude.app.config" value="true" unless="${property::exists('exclude.app.config')}" />
+
+		<choose>
+			<when test="${property::exists('applicationartifacts.pattern.file')}">
+				<patternset id="applicationartifacts.patternset.dynamic" >
+					<includesfile name="${applicationartifacts.pattern.file}" />
+				</patternset>
+			</when>
+			<when test="${property::exists('applicationartifacts.pattern.include')}">
+				<patternset id="applicationartifacts.patternset.dynamic">
+					<include name="${applicationartifacts.pattern.include}" />
+				</patternset>
+			</when>
+			<when test="${property::exists('applicationartifacts.patternset.byrefid')}">
+				<patternset id="applicationartifacts.patternset.dynamic">
+					<patternset refid="applicationartifacts.patternset.byrefid" />
+				</patternset>
+			</when>
+			<otherwise>
+				<patternset id="applicationartifacts.patternset.dynamic">
+					<!-- Empty PatternSet -->
+				</patternset>
+			</otherwise>
+		</choose>
+		
+		<patternset id="applicationartifacts.patternset">
+			<!-- Subversion Files -->
+			<exclude name="**\_svn" />
+			<exclude name="**\.svn" />
+
+			<include name="**\*.xml" />
+			<include name="**\*.xsd" />
+			<include name="**\*.xsl" />
+			<include name="**\*.xslt" />
+
+			<!-- Images -->
+			<include name="**\*.bmp" />
+			<include name="**\*.gif" />
+			<include name="**\*.GIF" />
+			<include name="**\*.ico" />
+			<include name="**\*.jpg" />
+			<include name="**\*.JPG" />
+			<include name="**\*.png" />
+
+			<!-- Documents -->
+			<include name="**\*.pdf" />
+
+			<!-- Application Binaries -->
+			<include name="**\*.dll" />
+			<include name="**\*.exe" />
+			<include name="**\*.pdb" />
+			
+			<!-- Click Once Application Assets -->
+			<include name="**\*.application" />
+			<include name="**\*.manifest" />
+			
+			<include name="**\*.exe.config" unless="${property::exists('exclude.app.config') and property::get-value('exclude.app.config') == 'true'}" />
+			<exclude name="**\*.exe.config" if="${property::exists('exclude.app.config') and property::get-value('exclude.app.config') == 'true'}" />
+		</patternset>
+	</target>
+
+
+	<target name="update-windowsapplication-appsettings">
+		<!--
+			Updates the appsettings specified by <Web.Application.Name>.appsettings.keys (comma delimited) with the values specified by propertes with the keys as names
+			
+			Required Properties:
+				* 
+				* <Windows.Application.Name>.appsettings.keys - comma delimited list of AppSetting Keys
+				* <Windows.Application.Name>.configfile.path - File path to the App.config file for the application
+				* <AppSettingKey> - For each AppSetting key in the <Web.Application.Name>.appsettings.keys list, a corresponsing <AppSettingKey> proeprty containing the value for the AppSetting
+		-->
+
+		<echo if="${not property::exists('windowsapplication.project.list')}"
+					message="Missing windowsapplication.project.list property ... windows application projects will not be pushed!"/>
+
+		<foreach item="String" property="windowsapplication.project.name" in="${windowsapplication.project.list}" delim="," trim="Both"
+						 if="${property::exists('windowsapplication.project.list')}">
+			<do>
+
+				<echo message="${'Applying AppSettings for Windows Application project ' + windowsapplication.project.name }" />
+
+				<property name="${windowsapplication.project.name}.configfile.name" value="${windowsapplication.project.name}.exe.config"
+									unless="${property::exists(windowsapplication.project.name + '.configfile.name')}" />
+
+				<if test="${not property::exists(windowsapplication.project.name + '.configfile.path') and property::exists(windowsapplication.project.name + '.DeploymentLocation')}">
+					<!-- Default App.config Path, if we know the deployment location -->
+					<echo message="Assuming default app.config location for ${windowsapplication.project.name} ..."/>
+					<property name="${windowsapplication.project.name + '.configfile.path'}"
+										value="${property::get-value(windowsapplication.project.name + '.DeploymentLocation')}\${property::get-value(windowsapplication.project.name + '.configfile.name')}" />
+				</if>
+
+
+				<echo if="${not property::exists(windowsapplication.project.name + '.appsetting.keys')}"
+							message="Missing property ${windowsapplication.project.name}.appsetting.keys ... NO APPSETTINGS WILL BE MODIFIED IN THE APPLICATION CONFIGURATION FILE!" />
+				
+				<if test="${property::exists(windowsapplication.project.name + '.appsetting.keys') and property::exists(windowsapplication.project.name + '.configfile.path')}">
+
+					<property name="config.filepath" value="${property::get-value(windowsapplication.project.name + '.configfile.path')}" />
+
+					<foreach item="String" property="appsetting.key" in="${property::get-value(windowsapplication.project.name + '.appsetting.keys')}" delim="," trim="Both">
+						<do>
+							<!-- Default to blank value -->
+							<property name="windowsapplication.appsetting.value" value=""/>
+
+							<!-- Look for global appsetting value (i.e. property with the same name as the appsetting key) -->
+							<if test="${property::exists(appsetting.key)}">
+								<property name="windowsapplication.appsetting.value" value="${property::get-value(appsetting.key)}" />
+							</if>
+
+							<!-- Look for app-specific setting (property named with name of project prepended to appsetting key) -->
+							<if test="${property::exists(windowsapplication.project.name + '.' + appsetting.key)}">
+								<property name="windowsapplication.appsetting.value" value="${property::get-value(windowsapplication.project.name + '.' + appsetting.key)}" />
+							</if>
+
+							<property name="appsetting.key" value="${appsetting.key}" />
+							<property name="appsetting.value" value="${windowsapplication.appsetting.value}" />
+							<call target="update-appsetting" />
+						</do>
+					</foreach>
+
+				</if>
+				<echo message="${'Failed setting AppSettings for ' + windowsapplication.project.name + '. Missing one or both of the following properties: ' 
+														+ windowsapplication.project.name + '.appsetting.keys, ' + windowsapplication.project.name + '.configfile.path'}"
+							unless="${property::exists(windowsapplication.project.name + '.appsetting.keys') and property::exists(windowsapplication.project.name + '.configfile.path')}" />
+			</do>
+		</foreach>
+
+	</target>
+
+
+</project>

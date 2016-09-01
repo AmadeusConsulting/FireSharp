@@ -1,0 +1,6 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<project name="Jenkins Environment Setup Include" xmlns="http://nant.sf.net/release/0.92/nant.xsd">
+	
+	<property name="env.FxCopDirectory" value="${env.VS2012FxCopDirectory}" overwrite="true" />
+	
+</project>

@@ -1,0 +1,76 @@
+<?xml version="1.0"?>
+
+<project name="Silverlight Deployment Block" xmlns="http://nant.sf.net/release/0.85/nant.xsd">
+	<!-- 
+		Required Properties
+		
+		silverlightProjectNames
+			- A comma-delimited list of Silverlight project names
+		
+		{SilverlightProjectName}.WebApplicationProjectName
+			- The name of the web site project hosting each project in silverlightProjectNames
+			
+		{WebApplicationProjectName}.DeploymentLocation
+			- The deployment file path for each web site project
+			
+		{WebApplicationProjectName}.Url
+			- The base URL of each web site project
+	-->
+
+	<property name="event" value="pushed" />
+	<property name="subscriber" value="configureSilverlight" />
+	<call target="subscribe" />
+
+	<target
+		name="configureSilverlight"
+		description="Extracts Silverlight XAP packages and sets web service URLs in the configuration files">
+		
+		<foreach item="String" in="${silverlightProjectNames}" delim="," trim="Both" property="silverlightProjectName">
+			<do>
+				<property name="webApplicationProjectNameProperty" value="${silverlightProjectName + '.WebApplicationProjectName'}" />
+				<property name="webApplicationProjectName" value="${property::get-value(webApplicationProjectNameProperty)}" />
+				
+				<property name="webApplicationDeploymentLocationProperty" value="${webApplicationProjectName + '.DeploymentLocation'}" />
+				<property name="webApplicationDeploymentLocation" value="${property::get-value(webApplicationDeploymentLocationProperty)}" />
+
+				<property name="webApplicationUrlProperty" value="${webApplicationProjectName + '.Url'}" />
+				<property name="webApplicationUrl" value="${property::get-value(webApplicationUrlProperty)}" />
+
+				<property name="clientBinLocation" value="${webApplicationDeploymentLocation}\ClientBin" />
+				<property name="xapName" value="${silverlightProjectName}.xap" />
+
+				<mkdir dir="${clientBinLocation}\Temp" />
+
+				<unzip zipfile="${clientBinLocation}\${xapName}" todir="${clientBinLocation}\Temp" />
+
+				<property name="clientConfigFile" value="${clientBinLocation}\Temp\ServiceReferences.ClientConfig" />
+				<property name="clientEndpointName" value="CustomBinding_ISecurity" />
+				<property name="clientEndpointAddress" value="${webApplicationUrl}/Security.svc" />
+
+				<call target="silverlightPoke" />
+
+				<zip zipfile="${clientBinLocation}\Temp\${xapName}" ziplevel="9" >
+					<fileset basedir="${clientBinLocation}\Temp" >
+						<include name="**"/>
+					</fileset>
+				</zip>
+
+				<copy
+					file="${clientBinLocation}\Temp\${xapName}"
+					tofile="${clientBinLocation}\${xapName}"
+					overwrite="True"
+				/>
+
+				<delete dir="${clientBinLocation}\Temp" />
+			</do>
+		</foreach>
+	</target>
+
+	<target name="silverlightPoke">
+		<xmlpoke
+			file="${clientConfigFile}"
+			xpath="/configuration/system.serviceModel/client/endpoint[@name='${clientEndpointName}']/@address"
+			value="${clientEndpointAddress}"
+		/>
+	</target>
+</project>
