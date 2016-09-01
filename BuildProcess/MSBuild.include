@@ -1,0 +1,62 @@
+<?xml version="1.0"?>
+<project name="MSBuild block" xmlns="http://nant.sf.net/release/0.92/nant.xsd">
+	<!-- 
+		Required Properties
+		
+		compile.Solution 	- The file name (without extension) of the solution to build.
+		OR
+		compile.Solution.list - List of solution files (comma separated) to build
+		
+		Optional Properties
+		
+		MSBuild.solution.basedir	- specify base directory for Solution Files (default is project root)
+	-->
+
+	<property name="event" value="compile" />
+	<property name="subscriber" value="msbuild-build" />
+	<call target="subscribe" />
+
+	<property name="MSBuild.solution.basedir" value="${project::get-base-directory()}" unless="${property::exists('MSBuild.solution.basedir')}" />
+
+	<!--
+		Main target to compile a Visual Studio Solution File using MSBuild
+	-->
+	<target name="msbuild-build">
+		<choose>
+			<when test="${property::exists('compile.Solution.list')}">
+				<foreach item="String" property="compile.solution.file" in="${compile.Solution.list}" delim="," trim="Both">
+					<do>
+            <property name="msbuild.escaped.solutionname" value="${string::replace(string::replace(compile.solution.file, '/', '_'), '\', '_')}" />
+            
+						<property name="msbuild.solution.configuration.property" value="${msbuild.escaped.solutionname + '.build.configuration'}" />
+						<property name="${msbuild.solution.configuration.property}" 
+								  value="Release" 
+								  unless="${property::exists(msbuild.solution.configuration.property)}" />
+
+            <property name="msbuild.solution.target.property" value="${msbuild.escaped.solutionname + '.build.target'}" />
+            <property name="${msbuild.solution.target.property}" value="Clean,Build" unless="${property::exists(msbuild.solution.target.property)}" />
+						
+            <property name="msbuild.fxcop.property" value="FxCopDir=&quot;${env.FxCopDirectory}&quot;;" />
+
+            <if test="${property::exists('msbuild.nofxcop')}" >
+              <property name="msbuild.fxcop.property" value="" />
+            </if>
+            
+						<property name="msbuild.commandline" 
+								  value="&quot;${MSBuild.solution.basedir}\${compile.solution.file}&quot; /p:${msbuild.fxcop.property}Configuration=${property::get-value(msbuild.solution.configuration.property)} /v:diag /t:${property::get-value(msbuild.solution.target.property)}" />
+
+						<property name="msbuild.commandline" value="${msbuild.commandline} /m" unless="${property::exists('msbuild.parallel') and property::get-value('msbuild.parallel') == 'false'}" />
+						
+						<exec program="${env.msbuild.path}" commandline="${msbuild.commandline}" verbose="true" />
+					</do>
+				</foreach>
+			</when>
+			<otherwise>
+				<exec
+					program="${MSBuild.path}"
+					commandline="&quot;${MSBuild.solution.basedir}\${compile.Solution}&quot; /p:FxCopDir=&quot;${env.FxCopDirectory}&quot;;Configuration=Release /v:diag /t:Clean,Build /m" />
+			</otherwise>
+		</choose>
+	</target>
+	
+</project>

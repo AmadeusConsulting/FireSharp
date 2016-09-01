@@ -1,0 +1,93 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="Build">
+  <PropertyGroup>
+    <ProjectGuid>{B2366FA8-33CC-4EE5-AA84-ECD286357693}</ProjectGuid>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <OutputType>Library</OutputType>
+    <RootNamespace>AmadeusConsulting.BI.NAnt.Tasks</RootNamespace>
+    <AssemblyName>Amadeus.BI.NAnt.Tasks</AssemblyName>
+    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <TargetFrameworkProfile>
+    </TargetFrameworkProfile>
+    <NoWin32Manifest>False</NoWin32Manifest>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Platform)' == 'AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <OutputPath>bin\Debug\</OutputPath>
+    <DebugSymbols>True</DebugSymbols>
+    <DebugType>Full</DebugType>
+    <Optimize>False</Optimize>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <OutputPath>bin\Release\</OutputPath>
+    <DebugSymbols>False</DebugSymbols>
+    <DebugType>None</DebugType>
+    <Optimize>True</Optimize>
+    <DefineConstants>TRACE</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Boo.Lang.Useful" />
+    <Reference Include="log4net">
+      <HintPath>..\..\..\..\..\nant\nant-0.92\bin\log4net.dll</HintPath>
+    </Reference>
+    <Reference Include="NAnt.CompressionTasks">
+      <HintPath>..\..\..\..\..\nant\nant-0.92\bin\NAnt.CompressionTasks.dll</HintPath>
+    </Reference>
+    <Reference Include="NAnt.Core">
+      <HintPath>..\..\..\..\..\nant\nant-0.92\bin\NAnt.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="NAnt.DotNetTasks">
+      <HintPath>..\..\..\..\..\nant\nant-0.92\bin\NAnt.DotNetTasks.dll</HintPath>
+    </Reference>
+    <Reference Include="NAnt.MSNetTasks">
+      <HintPath>..\..\..\..\..\nant\nant-0.92\bin\NAnt.MSNetTasks.dll</HintPath>
+    </Reference>
+    <Reference Include="NAnt.NUnit">
+      <HintPath>..\..\..\..\..\nant\nant-0.92\bin\NAnt.NUnit.dll</HintPath>
+    </Reference>
+    <Reference Include="NAnt.NUnit1Tasks">
+      <HintPath>..\..\..\..\..\nant\nant-0.92\bin\NAnt.NUnit1Tasks.dll</HintPath>
+    </Reference>
+    <Reference Include="NAnt.NUnit2Tasks">
+      <HintPath>..\..\..\..\..\nant\nant-0.92\bin\NAnt.NUnit2Tasks.dll</HintPath>
+    </Reference>
+    <Reference Include="NAnt.SourceControlTasks">
+      <HintPath>..\..\..\..\..\nant\nant-0.92\bin\NAnt.SourceControlTasks.dll</HintPath>
+    </Reference>
+    <Reference Include="NAnt.VisualCppTasks">
+      <HintPath>..\..\..\..\..\nant\nant-0.92\bin\NAnt.VisualCppTasks.dll</HintPath>
+    </Reference>
+    <Reference Include="NAnt.VSNetTasks">
+      <HintPath>..\..\..\..\..\nant\nant-0.92\bin\NAnt.VSNetTasks.dll</HintPath>
+    </Reference>
+    <Reference Include="NAnt.Win32Tasks">
+      <HintPath>..\..\..\..\..\nant\nant-0.92\bin\NAnt.Win32Tasks.dll</HintPath>
+    </Reference>
+    <Reference Include="NDoc.Documenter.NAnt">
+      <HintPath>..\..\..\..\..\nant\nant-0.92\bin\NDoc.Documenter.NAnt.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Core">
+      <RequiredTargetFramework>3.5</RequiredTargetFramework>
+    </Reference>
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Security" />
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Xml.Linq">
+      <RequiredTargetFramework>3.5</RequiredTargetFramework>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\..\..\..\..\Projects\Amadeus\Nexus\BuildProcess\Boo\Scripts\XmlObject.boo">
+      <Link>XmlObject.boo</Link>
+    </Compile>
+    <Compile Include="AssemblyInfo.boo" />
+    <Compile Include="BuildBiSolutionTask.boo" />
+    <Compile Include="SisManifestGenerateTask.boo" />
+    <Compile Include="SsasXmlaGenerationTask.boo" />
+  </ItemGroup>
+  <Import Project="$(BooBinPath)\Boo.Microsoft.Build.targets" />
+</Project>

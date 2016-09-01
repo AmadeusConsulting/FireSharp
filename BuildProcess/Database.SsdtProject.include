@@ -1,0 +1,353 @@
+<?xml version="1.0"?>
+
+<project name="SQL Server Data Tools Project Tasks" xmlns="http://nant.sf.net/release/0.92/nant.xsd">
+  <!-- 
+		Include file for SQL Server Data Tools Database Projects
+		
+		Required Properties:
+			
+			- deploy-databse-artifacts
+				* sourceLocation : What is the root directory for the source tree?
+				* ssdt.project.list : Comma separated list of SSDT Database Projects from which the artifacts are generated
+					# Note: the project must be located in a directory of the same name under the sourceLocation (for instance MySSDT.Project.sqlproj should be found at ${sourceLocation}\MySSDT.Project\MySSDT.Project.sqlproj)
+				* artifactLocation : Where are the artifacts being deployed?
+				* version : what label are we affixing to the current set of artifacts?
+			
+			- push-ssdt-databases
+				* artifactLocation : Where are the artifacts we're deploying from located ?
+				* ssdt.project.list : What is the comma-separated list of SSDT Database projects we're publishing ?
+				* <ssdt-project-name>.publish.connection : What's the connection string for the database to publish ?
+					# Note: Observe that the previous property must be prefixed by the project name to allow for deploying different projects to 
+					# different locations (for instance, MySSDT.Project.sqlproj would need MySSDT.Project.target.database.server and MySSDT.Project.target.database.name)
+				
+		Optional Properties:
+		
+			- push-ssdt-databases
+				* <ssdt-project-name>.publish.properties : Specify properties to pass to SqlPackage during database publishing. The value of this property should be in the form of Key=Value[,Key=Value ...] 
+					Valid property names can be found here: http://msdn.microsoft.com/en-us/library/hh550080%28v=vs.103%29.aspx
+				* <ssdt-project-name>.publish.variables : Specify SQLCMD variables, if necessary, to be used during the database publishing.  The value of this property should be in the form of Key=Value[,Key=Value ...]
+				* <ssdt-project-name>.publish.commandline : additional command-line flags you'd like to pass to the database publish action.
+					# Note that all optional properties must be prefixed with the SSDT Project Name
+				* <ssdt-project-name>.action : Specify the action to perform. The value of this property should be Publish, or Script
+				* <ssdt-project-name>.outputpath : Required if <ssdt-project-name>.action is set to Script. Specifies the output directory to write the script.
+	-->
+
+  <property name="ssdt.constants.sql2008.versionnumber" value="10.0" readonly="true" />
+  <property name="ssdt.constants.sql2012.versionnumber" value="11.0" readonly="true" />
+  <property name="ssdt.constants.sql2014.versionnumber" value="12.0" readonly="true" />
+  <property name="ssdt.constants.sql2016.versionnumber" value="13.0" readonly="true" />
+  
+  
+  
+  <!-- Tie into the artifacts deployment to add the Database Project Artifacts -->
+  <property name="event" value="before-compile" />
+  <property name="subscriber" value="set-ssdt-database-version" />
+  <call target="subscribe" />
+
+  <property name="event" value="artifactsDeploying" />
+  <property name="subscriber" value="deploy-ssdt-database-artifacts" />
+  <call target="subscribe" />
+
+  <property name="event" value="pushing" />
+  <property name="subscriber" value="push-ssdt-databases" />
+  <call target="subscribe" />
+
+  <property name="event" value="test" />
+  <property name="subscriber" value="ssdt-test-push-database" />
+  <call target="subscribe"
+        if="${property::exists('ssdt.test.database.deploy') and property::get-value('ssdt.test.database.deploy') == 'true'}" />
+
+
+  <!-- Gets set to true during ssdt-test-databse-push -->
+  <property name="ssdt.testing.push" value="false" />
+
+  <target name="verify-ssdt-project-properties">
+    <property name="verify.ssdt.properties.failed" value="false" />
+
+    <if test="${ not property::exists('artifactLocation') and skip.deploy.artifacts != 'true' }">
+      <echo message="missing artifactLocation property and skip.deploy.artifacts is not set!" />
+      <property name="verify.ssdt.properties.failed" value="true" />
+    </if>
+
+    <if test="${ not property::exists('ssdt.project.list') }">
+      <echo message="missing ssdt.project.list property!" />
+      <property name="verify.ssdt.properties.failed" value="true" />
+    </if>
+
+    <if test="${ not property::exists('version') }">
+      <echo message="missing version property!" />
+      <property name="verify.ssdt.properties.failed" value="true" />
+    </if>
+
+    <fail
+      if="${verify.ssdt.properties.failed == 'true'}"
+      message="Missing required properties! Please check that the following properties are set before calling deploy-database-artifacts: artifactLocation, ssdt.project.list, version" />
+
+  </target>
+
+  <target name="set-ssdt-database-version">
+    <foreach item="String" property="ssdt.proj.name" in="${ssdt.project.list}" delim="," trim="Both">
+      <do>
+        <property name="ssdt.proj.filepath" value="${ssdt.proj.name}\${ssdt.proj.name}.sqlproj" />
+        <property name="ssdt.proj.filepath.property" value="${ssdt.proj.name + '.project-filepath'}" />
+
+        <if test="${property::exists(ssdt.proj.filepath.property)}">
+          <property name="ssdt.proj.filepath" value="${property::get-value(ssdt.proj.filepath.property)}" />
+        </if>
+
+        <echo message="setting version ${version} on ${ssdt.proj.filepath}" />
+
+        <xmlpeek file="${ssdt.proj.filepath}"
+                 xpath="/mb:Project/mb:PropertyGroup[string-length(@Condition)=0][.//mb:DacVersion]"
+                 property="property-group-with-dacversion" failonerror="false">
+          <namespaces>
+            <namespace prefix="mb" uri="http://schemas.microsoft.com/developer/msbuild/2003" />
+          </namespaces>
+        </xmlpeek>
+
+        <if
+          test="${not property::exists('property-group-with-dacversion') or string::get-length(property::get-value('property-group-with-dacversion'))==0}">
+          <xmlpeek file="${ssdt.proj.filepath}" xpath="/mb:Project/mb:PropertyGroup[string-length(@Condition)=0]"
+                   nodeindex="0" property="property-group-wo-dacversion">
+            <namespaces>
+              <namespace prefix="mb" uri="http://schemas.microsoft.com/developer/msbuild/2003" />
+            </namespaces>
+          </xmlpeek>
+          <echo message="DacVersion Property not found in ${ssdt.proj.filepath} ... adding it." />
+          <xmlpoke
+            file="${ssdt.proj.filepath}"
+            xpath="/mb:Project/mb:PropertyGroup[string-length(@Condition)=0][1]"
+            value="${property-group-wo-dacversion + '&lt;DacVersion&gt;' + version + '&lt;/DacVersion&gt;'}">
+            <namespaces>
+              <namespace prefix="mb" uri="http://schemas.microsoft.com/developer/msbuild/2003" />
+            </namespaces>
+          </xmlpoke>
+        </if>
+
+        <xmlpoke file="${ssdt.proj.filepath}"
+                 xpath="/mb:Project/mb:PropertyGroup[string-length(@Condition)=0][1]/mb:DacVersion"
+                 value="${version}">
+          <namespaces>
+            <namespace prefix="mb" uri="http://schemas.microsoft.com/developer/msbuild/2003" />
+          </namespaces>
+        </xmlpoke>
+      </do>
+    </foreach>
+  </target>
+
+  <target name="deploy-ssdt-database-artifacts" depends="verify-ssdt-project-properties"
+          if="${property::exists('artifactLocation')}">
+
+    <fail if="${ property::exists('ssdt.project.list') and not property::exists('sourceLocation') }"
+          message="missing sourceLocation property!" />
+
+    <foreach item="String" property="ssdt.proj.name" in="${ssdt.project.list}" delim="," trim="Both"
+             if="${property::exists('ssdt.project.list')}">
+      <do>
+        <property name="ssdt.custom.bindir.property" value="${ssdt.proj.name + '.bindir'}" />
+        <property name="ssdt.project.bindir" value="${ssdt.proj.name}\bin\Release" />
+        <if test="${property::exists(ssdt.custom.bindir.property)}">
+          <property name="ssdt.project.bindir" value="${property::get-value(ssdt.custom.bindir.property)}" />
+        </if>
+
+        <mkdir dir="${artifactLocation}\${ssdt.proj.name}"
+               unless="${directory::exists(artifactLocation + '\' + ssdt.proj.name)}" />
+        <copy todir="${artifactLocation}\${ssdt.proj.name}">
+          <fileset basedir="${sourceLocation}\${ssdt.project.bindir}">
+            <include name="*.dacpac" />
+            <include name="*.dll" />
+          </fileset>
+        </copy>
+      </do>
+    </foreach>
+  </target>
+
+  <target name="push-ssdt-databases" depends="verify-ssdt-project-properties">
+
+    <!-- raise an event to allow hooks to fire prior to publishing databases -->
+    <property name="event" value="pre.database.publish" />
+    <call target="raiseEvent" />
+
+
+    <!-- Roll through each SSDT Project and publish it -->
+    <foreach item="String" property="ssdt.proj.name" in="${ssdt.project.list}" delim="," trim="Both">
+      <do>
+        <echo message="Publishing Database for ${ssdt.proj.name} ..." />
+
+        <property name="ssdt.proj.connection.property" value="${ssdt.proj.name + '.publish.connection'}" />
+
+        <choose>
+          <when test="${property::exists(ssdt.proj.connection.property)}">
+            <property name="ssdt.proj.publish.connection" value="${property::get-value(ssdt.proj.connection.property)}" />
+
+            <!-- Default blank optional values-->
+            <property name="ssdt.proj.publish.properties" value="" />
+            <property name="ssdt.proj.publish.variables" value="" />
+            <property name="ssdt.proj.publish.commandline" value="" />
+
+            <if
+              test="${property::exists('ssdt.publish.addnextversion') and property::get-value('ssdt.publish.addnextversion') == 'true'}">
+              <echo message="Setting Variable NextVersion=${version}" />
+              <property name="ssdt.proj.publish.variables" value="/v:&quot;NextVersion=${version}&quot;" />
+              <!-- Create sqlcmd variable containing the next version of the database to be deployed -->
+            </if>
+
+            <!-- Properties storing optional values -->
+            <property name="ssdt.proj.publish.properties.property" value="${ssdt.proj.name + '.publish.properties'}" />
+            <property name="ssdt.proj.publish.variables.property" value="${ssdt.proj.name + '.publish.variables'}" />
+            <property name="ssdt.proj.publish.commandline.property" value="${ssdt.proj.name + '.publish.commandline'}" />
+
+            <if test="${property::exists(ssdt.proj.publish.properties.property)}">
+              <foreach item="String" property="ssdt.publish.property"
+                       in="${property::get-value(ssdt.proj.publish.properties.property)}" delim="," trim="Both">
+                <do>
+                  <echo message="Setting Publish Property ${ssdt.publish.property}" />
+                  <property name="ssdt.proj.publish.properties"
+                            value="${ssdt.proj.publish.properties + ' /p:' + ssdt.publish.property}" overwrite="true" />
+                </do>
+              </foreach>
+            </if>
+
+            <if test="${property::exists(ssdt.proj.publish.variables.property)}">
+              <foreach item="String" property="ssdt.publish.variable"
+                       in="${property::get-value(ssdt.proj.publish.variables.property)}" delim="," trim="Both">
+                <do>
+                  <echo message="Setting Variable ${ssdt.publish.variable}" />
+                  <property name="ssdt.proj.publish.variables"
+                            value="${ssdt.proj.publish.variables + ' /v:&quot;' + ssdt.publish.variable + '&quot; '}"
+                            overwrite="true" />
+                </do>
+              </foreach>
+
+            </if>
+
+            <if test="${property::exists(ssdt.proj.publish.commandline.property)}">
+              <property name="ssdt.proj.publish.commandline"
+                        value="${property::get-value(ssdt.proj.publish.commandline.property)}" overwrite="true" />
+            </if>
+
+            <call target="ssdt-exec-publish" />
+          </when>
+          <otherwise>
+            <echo
+              message="[SSDT Push Databases] Could not find property ${ssdt.proj.connection.property} containing connection string to target database for deployment of ${ssdt.proj.name} project! Skipping it!" />
+          </otherwise>
+        </choose>
+      </do>
+    </foreach>
+
+    <!-- raise an event to allow hooks to fire after publishing databases -->
+    <property name="event" value="post.database.publish" />
+    <call target="raiseEvent" />
+  </target>
+
+  <target name="ssdt-test-push-database">
+    <property name="ssdt.testing.push" value="true" />
+
+    <!-- 
+      TODO: Come up with a way to incorporate FluentMigrator into the test push, which likely requires the ability to specify 
+      the database project each FluentMigrator library is intended to pair with; that way we will know which localdb instance 
+      the FluentMigrator libraries should be executed against.
+    -->
+    
+    <!-- make sure sqllocaldb is in the path -->
+    <exec program="where" failonerror="true">
+      <arg line="/Q sqllocaldb" />
+    </exec>
+
+    <foreach item="String" property="ssdt.proj.name" in="${ssdt.project.list}" delim="," trim="Both">
+      <do>
+        <echo message="Testing Publish for Database '${ssdt.proj.name}' ..." />
+          
+        <!-- run sqllocaldb to start an instance -->
+        <exec program="sqllocaldb" failonerror="true" verbose="true">
+          <arg line="create" />
+          <arg value="${ssdt.proj.name}" /> <!-- TODO: need to prefix proj name with build job to ensure uniqueness -->
+          <arg value="${ssdt.constants.sql2014.versionnumber}" /> <!-- TODO: Allow override of localdb instance version -->
+          <arg line="-s" />
+        </exec>
+
+        <property name="ssdt.proj.publish.connection" value="server=(localdb)\${ssdt.proj.name};database=${ssdt.proj.name};Integrated Security=SSPI" />
+        
+        <!-- Default blank optional values-->
+        <property name="ssdt.proj.publish.properties" value="/p:CreateNewDatabase=True /p:IncludeCompositeObjects=True" />
+        <property name="ssdt.proj.publish.variables" value="" />
+        <property name="ssdt.proj.publish.commandline" value="" />
+
+        <call target="ssdt-exec-publish" />
+      </do>
+    </foreach>
+
+    <property name="ssdt.testing.push" value="false" />
+  </target>
+
+  <target name="ssdt-exec-publish">
+
+    <if test="${not string::contains(ssdt.proj.publish.properties, 'IncludeCompositeObjects')}">
+      <!-- Default to including composite objects in publish operations unless explicitly disabled -->
+      <echo message="Setting Variable IncludeCompositeObjects = True (the default)" />
+      <property name="ssdt.proj.publish.properties"
+                value="${ssdt.proj.publish.properties + ' /p:IncludeCompositeObjects=True'}" />
+    </if>
+
+    <if test="${not string::contains(ssdt.proj.publish.properties, 'DropDmlTriggersNotInSource')}">
+      <!-- Reverse the sqlpackage default that drops dml triggers not in the source dacpac (unless a property is explicitly set to do so) -->
+      <echo message="Setting Variable DropDmlTriggersNotInSource = False (the default)" />
+      <property name="ssdt.proj.publish.properties"
+                value="${ssdt.proj.publish.properties + ' /p:DropDmlTriggersNotInSource=False'}" />
+    </if>
+
+    <choose>
+      <when test="${ssdt.testing.push == 'true'}">
+        <property name="ssdt.artifact.basepath" value="${path::combine(path::combine(project::get-base-directory(), ssdt.proj.name), 'bin\Release')}" />
+      </when>
+      <when test="${use.local.artifact.folder == 'true' and pushing.from.artifacts != 'true'}">
+        <!-- local artifact directory paths are relative to the project root -->
+        <property name="ssdt.artifact.basepath"
+                  value="${path::combine(path::combine(project::get-base-directory(), local.artifact.folder.path), ssdt.proj.name)}" />
+      </when>
+      <otherwise>
+        <property name="ssdt.artifact.basepath" value="${path::combine(artifactLocation, ssdt.proj.name)}" />
+      </otherwise>
+    </choose>
+
+    <echo message="Using ${ssdt.artifact.basepath} as the working directory for SqlPackage.exe" />
+    
+    <property name="sqlpackage.workingdir" value="${ssdt.artifact.basepath}" />
+
+    <if test="${skip.deploy.artifacts == 'true'}">
+      <!-- if we're in skip.deploy.artifacts mode, the artifact directory is the project root -->
+      <property name="sqlpackage.workingdir" value="${sqlpackage.workingdir + '\bin\Release'}" />
+    </if>
+
+    <!-- The default file name expected for the dacpac is one that matches the projectname; however, this can be overidden -->
+    <property name="ssdt.proj.dacpac.filename" value="${ssdt.proj.name + '.dacpac'}" />
+    <property name="ssdt.proj.dacpac.filename.property" value="${ssdt.proj.name + '.dacpac.filename'}" />
+    <if test="${property::exists(ssdt.proj.dacpac.filename.property)}">
+      <property name="ssdt.proj.dacpac.filename"
+                value="${property::get-value(ssdt.proj.dacpac.filename.property)}" />
+    </if>
+
+    <property name="ssdt.proj.action" value="Publish" />
+    <property name="ssdt.proj.action" value="${property::get-value(ssdt.proj.name + '.action')}"
+              if="${property::exists(ssdt.proj.name + '.action')}" />
+
+    <fail
+      if="${property::get-value('ssdt.proj.action') == 'Script' and not(property::exists(ssdt.proj.name + '.outputpath'))}"
+      message="You must provide an output path for the script file in the ${ssdt.proj.name}.outputpath property" />
+
+    <property name="ssdt.outputpath.parameter" value="" />
+    <property name="ssdt.outputpath.parameter"
+              value="${'/OutputPath:&quot;' + property::get-value(ssdt.proj.name + '.outputpath') + '&quot;'}"
+              if="${property::exists(ssdt.proj.name + '.outputpath')}" />
+
+    <exec
+      program="${env.sqlpackage.path}"
+      workingdir="${sqlpackage.workingdir}"
+      commandline="/Action:${ssdt.proj.action} /SourceFile:${ssdt.proj.dacpac.filename} ${ssdt.outputpath.parameter} /tcs:&quot;${ssdt.proj.publish.connection}&quot; ${ssdt.proj.publish.properties} ${ssdt.proj.publish.variables} ${ssdt.proj.publish.commandline}"
+      failonerror="true"
+      verbose="true" />
+
+  </target>
+
+</project>

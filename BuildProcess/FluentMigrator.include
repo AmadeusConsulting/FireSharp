@@ -1,0 +1,108 @@
+<?xml version="1.0"?>
+<project name="FluentMigrator Database Migration Tasks" xmlns="http://nant.sf.net/release/0.92/nant.xsd">
+	<loadtasks assembly="${buildfile.includes.dir}/NAnt/custom_tasks/FluentMigrator.Tools.1.6.1/tools/AnyCPU/40/FluentMigrator.NAnt.dll" />
+
+	<property name="event" value="artifactsDeploying" />
+	<property name="subscriber" value="fluentmigrator-deploy-artifacts" />
+	<call target="subscribe" unless="${skip.deploy.artifacts == 'true'}" />
+	
+	<echo message="[FluentMigrator] skip.deploy.artifacts = ${skip.deploy.artifacts} ... artifacts will not be deployed" if="${skip.deploy.artifacts == 'true'}" />
+	
+	<!-- hook into the pre.database.publish event to run Fluent Migrations tagged with PrePublish -->
+	<property name="event" value="pre.database.publish" />
+	<property name="subscriber" value="fluentmigrator-prepublish-migrations" />
+	<call target="subscribe" />
+
+	<!-- hook into the post.database.publish event to run all Fluent Migrations -->
+	<property name="event" value="post.database.publish" />
+	<property name="subscriber" value="fluentmigrator-all-migrations" />
+	<call target="subscribe" />
+
+	<target name="fluentmigrator-prepublish-migrations">
+		<foreach item="String" property="fluentmigrator.project" in="${fluentmigrator.project.list}" delim="," trim="Both">
+			<property name="fluentmigrator.project.connectionstring.property" value="${fluentmigrator.project + '.connectionstring'}" />
+			<property name="fluentmigrator.project.database.property" value="${fluentmigrator.project + '.database'}" />
+
+			<property name="fluentmigrator.project.bindir" value="${path::combine(fluentmigrator.project, 'bin\Release')}" />
+			<property name="fluentmigrator.project.dllname" value="${fluentmigrator.project + '.dll'}" />
+
+			<if test="${property::exists(fluentmigrator.project + '.bindir')}">
+				<property name="fluentmigrator.project.bindir" value="${property::get-value(fluentmigrator.project + '.bindir')}" />
+			</if>
+
+			<if test="${property::exists(fluentmigrator.project + '.dllname')}">
+				<property name="fluentmigrator.project.dllname" value="${property::get-value(fluentmigrator.project + '.dllname')}" />
+			</if>
+
+			<property name="fluentmigrator.project.dllpath" value="${path::combine(fluentmigrator.project.bindir, fluentmigrator.project.dllname)}" />
+
+			<!--
+				See https://github.com/schambers/fluentmigrator/wiki/Nant-Runner-Options
+			-->
+
+			<migrate
+				workingdirectory="${fluentmigrator.project.bindir}"
+				database="${property::get-value(fluentmigrator.project.database.property)}"
+				connection="${property::get-value(fluentmigrator.project.connectionstring.property)}"
+				target="${fluentmigrator.project.dllpath}"
+				task="migrate"
+				tags="PrePublish"
+				verbose="true" />
+
+		</foreach>
+	</target>
+
+	<target name="fluentmigrator-all-migrations">
+		<foreach item="String" property="fluentmigrator.project" in="${fluentmigrator.project.list}" delim="," trim="Both">
+			<property name="fluentmigrator.project.connectionstring.property" value="${fluentmigrator.project + '.connectionstring'}" />
+			<property name="fluentmigrator.project.database.property" value="${fluentmigrator.project + '.database'}" />
+			
+			<property name="fluentmigrator.project.bindir" value="${path::combine(fluentmigrator.project, 'bin\Release')}" />
+			<property name="fluentmigrator.project.dllname" value="${fluentmigrator.project + '.dll'}" />
+
+			<if test="${property::exists(fluentmigrator.project + '.bindir')}">
+				<property name="fluentmigrator.project.bindir" value="${property::get-value(fluentmigrator.project + '.bindir')}" />
+			</if>
+
+			<if test="${property::exists(fluentmigrator.project + '.dllname')}">
+				<property name="fluentmigrator.project.dllname" value="${property::get-value(fluentmigrator.project + '.dllname')}" />
+			</if>
+			
+			<property name="fluentmigrator.project.dllpath" value="${path::combine(fluentmigrator.project.bindir, fluentmigrator.project.dllname)}" />
+			
+			<!--
+				See https://github.com/schambers/fluentmigrator/wiki/Nant-Runner-Options
+			-->
+			
+			<migrate
+				workingdirectory="${fluentmigrator.project.bindir}"
+				database="${property::get-value(fluentmigrator.project.database.property)}"
+				connection="${property::get-value(fluentmigrator.project.connectionstring.property)}"
+				target="${fluentmigrator.project.dllpath}"
+				task="migrate"
+				verbose="true" />
+			
+		</foreach>
+	</target>
+
+	<target name="fluentmigrator-deploy-artifacts">
+
+		<foreach item="String" property="fluentmigrator.project" in="${fluentmigrator.project.list}" delim="," trim="Both">
+			<do>
+				<property name="fluentmigrator.project.bindir" value="${path::combine(fluentmigrator.project, 'bin\Release')}" />
+
+				<if test="${property::exists(fluentmigrator.project + '.bindir')}">
+					<property name="fluentmigrator.project.bindir" value="${property::get-value(fluentmigrator.project + '.bindir')}" />
+				</if>
+
+				
+				<copy todir="${artifactLocation}\${fluentmigrator.project.bindir}">
+					<fileset basedir="${sourceLocation}\${fluentmigrator.project.bindir}">
+						<include name="**\*.dll" />
+						<include name="**\*.sql" />
+					</fileset>
+				</copy>
+			</do>
+		</foreach>
+	</target>
+</project>

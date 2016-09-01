@@ -1,0 +1,151 @@
+<?xml version="1.0"?>
+<project name="Amadeus Log4Net Build Tasks" xmlns="http://nant.sf.net/release/0.92/nant.xsd">
+
+	<boo>
+		<include path="${buildfile.includes.dir}\Boo\Scripts\XmlObject.boo" />
+		<include path="${buildfile.includes.dir}\Boo\Scripts\Log4Net.boo" />
+		<code>
+			<![CDATA[
+					import Boo.Log4Net
+					
+					print("Setting log4net.acglog.databaseappender.name property ...")
+					
+					Project.Properties["log4net.acglog.databaseappender.name"] = AcgLogConfig.AcgLogDatabaseAppenderName
+			]]>
+		</code>
+	</boo>
+	
+	<target name="log4net-add-acglog-appender">
+		<fail if="${not (property::exists('config.filepath'))}" message="missing config.filepath property"/>
+
+		<property name="log4net.acglog.connectionstring.name" value="default" unless="${property::exists('log4net.acglog.connectionstring.name')}" />
+		
+		<boo>
+			<include path="${buildfile.includes.dir}\Boo\Scripts\XmlObject.boo" />
+			<include path="${buildfile.includes.dir}\Boo\Scripts\Log4Net.boo" />
+			<code>
+				<![CDATA[
+					import Boo.XmlObject
+					import Boo.Log4Net
+				
+					config_file = Project.Properties["config.filepath"]
+					acglog_connectionstring_name = Project.Properties["log4net.acglog.connectionstring.name"]
+				
+					XmlObject.edit_xml_file(config_file, { x as XmlObject |
+							add_acglog_appender(x, acglog_connectionstring_name, print);
+					}, print)
+				]]>
+			</code>
+		</boo>
+	</target>
+
+	<target name="log4net-add-acglog-appender-to-root">
+		<fail if="${not (property::exists('config.filepath'))}" message="missing config.filepath property"/>
+
+		<property name="log4net.appender.name" value="${log4net.acglog.databaseappender.name}" />
+		<property name="log4net.logger.name" value="root" />
+
+		<call target="log4net-add-appender-ref" />
+		
+	</target>
+	
+
+	<target name="log4net-add-appender-ref">
+		<fail if="${not (property::exists('config.filepath'))}" message="missing config.filepath property"/>
+		<fail if="${not (property::exists('log4net.appender.name'))}" message="Missing log4net.appender.name property" />
+		<fail if="${not (property::exists('log4net.logger.name'))}" message="Missing log4net.logger.name property" />
+
+		<boo>
+			<include path="${buildfile.includes.dir}\Boo\Scripts\XmlObject.boo" />
+			<include path="${buildfile.includes.dir}\Boo\Scripts\Log4Net.boo" />
+			<code>
+				<![CDATA[
+				import Boo.XmlObject
+				import Boo.Log4Net
+				
+				config_file = Project.Properties["config.filepath"]
+				appender_name = Project.Properties["log4net.appender.name"]
+				logger_name = Project.Properties["log4net.logger.name"]
+				
+				XmlObject.edit_xml_file(config_file, { x as XmlObject |
+						add_appender_ref_to_logger(x, appender_name, logger_name, print);
+				}, print)
+				]]>
+			</code>
+		</boo>
+	</target>
+
+	<target name="log4net-add-rolling-file-appender">
+		<fail if="${not (property::exists('config.filepath'))}" message="missing config.filepath property"/>
+		<fail if="${not (property::exists('log4net.appender.name'))}" message="Missing log4net.appender.name property" />
+		<fail if="${not (property::exists('log4net.appender.filepath'))}" message="Missing log4net.appender.filepath property" />
+		
+		<boo>
+			<include path="${buildfile.includes.dir}\Boo\Scripts\XmlObject.boo" />
+			<include path="${buildfile.includes.dir}\Boo\Scripts\Log4Net.boo" />
+			<code>
+				<![CDATA[
+						import System
+						import Boo.XmlObject
+						import Boo.Log4Net
+				
+						config_file = Project.Properties["config.filepath"]
+						rf_appender_config = FileAppenderConfig()
+						rf_appender_config.Name = Project.Properties["log4net.appender.name"]
+						rf_appender_config.FilePath = Project.Properties["log4net.appender.filepath"]
+						
+						if Project.Properties.Contains("log4net.appender.file.append"): //default applies otherwise
+							rf_appender_config.Append = Project.Properties["log4net.appender.file.append"].Equals("true", StringComparison.OrdinalIgnoreCase)
+						if Project.Properties.Contains("log4net.appender.file.rollstyle"):
+							rf_appender_config.RollingStyle = Project.Properties["log4net.appender.file.rollstyle"]
+						if Project.Properties.Contains("log4net.appender.file.maxbackups"):
+							rf_appender_config.MaxBackups = int.Parse(Project.Properties["log4net.appender.file.maxbackups"])
+						if Project.Properties.Contains("log4net.appender.file.maxfilesize"):
+							rf_appender_config.MaxFileSize = Project.Properties["log4net.appender.file.maxfilesize"]
+						if Project.Properties.Contains("log4net.appender.file.staticname"):
+							rf_appender_config.StaticName = Project.Properties["log4net.appender.file.staticname"].Equals("true", StringComparison.OrdinalIgnoreCase)
+						if Project.Properties.Contains("log4net.appender.layout.type"):
+							rf_appender_config.LayoutType = Project.Properties["log4net.appender.layout.type"]
+						if Project.Properties.Contains("log4net.appender.layout.pattern"):
+							rf_appender_config.LayoutPattern = Project.Properties["log4net.appender.layout.pattern"]
+							
+						XmlObject.edit_xml_file(config_file, {x as XmlObject |
+								add_rolling_file_appender(x, rf_appender_config, print);
+						}, print)
+				]]>
+			</code>
+		</boo>
+	</target>
+
+	<target name="log4net-apply-logger-config">
+		<fail if="${not (property::exists('config.filepath'))}" message="missing config.filepath property"/>
+		<fail if="${not(property::exists('log4net.logger.name'))}" message="missing log4net.logger.name property" />
+
+		<property name="log4net.logger.level" value="DEBUG" unless="${property::exists('log4net.logger.level')}" />
+		<property name="log4net.logger.additivity" value="true" unless="${property::exists('log4net.logger.additivity')}" />
+
+		<boo>
+			<include path="${buildfile.includes.dir}\Boo\Scripts\XmlObject.boo" />
+			<include path="${buildfile.includes.dir}\Boo\Scripts\Log4Net.boo" />
+			<code>
+				<![CDATA[
+						import System
+						import Boo.Log4Net
+						import Boo.XmlObject
+						
+						config_file = Project.Properties["config.filepath"]
+						
+						logger_config = LoggerConfig(Project.Properties["log4net.logger.name"])
+						logger_config.Level = Project.Properties["log4net.logger.level"]
+						logger_config.Additivity = Project.Properties["log4net.logger.additivity"].Equals("true", StringComparison.OrdinalIgnoreCase)
+						
+						XmlObject.edit_xml_file(config_file, {x as XmlObject | 
+								apply_logger_settings(x, logger_config, print);
+						}, print)
+				]]>
+			</code>
+		</boo>
+		
+	</target>
+	
+</project>

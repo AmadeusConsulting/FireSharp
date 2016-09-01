@@ -1,0 +1,421 @@
+<?xml version="1.0"?>
+<project name="Amadeus WCF Shared Build File" xmlns="http://nant.sf.net/release/0.92/nant.xsd">
+
+	<target name="apply-wcf-service-config">
+		<!--
+			Loops through ${wcf.service.name.list} and applies configuration to configuration file located at ${config.filepath}
+		-->
+		
+		
+		<foreach item="String" property="wcf.service.name" in="${wcf.service.name.list}" delim="," trim="Both">
+			<do>
+
+				<property name="${wcf.service.name}.certificate.findvalue" value=" " unless="${property::exists(wcf.service.name + '.certificate.findvalue')}" />
+				<property name="${wcf.service.name}.certificate.findtype" value="FindByThumbprint" unless="${property::exists(wcf.service.name + '.certificate.findtype')}" />
+				<property name="${wcf.service.name}.certificate.storelocation" value="LocalMachine" unless="${property::exists(wcf.service.name + '.certificate.storelocation')}" />
+				<property name="${wcf.service.name}.certificate.storename" value="My" unless="${property::exists(wcf.service.name + '.certificate.storename')}"/>
+				<property name="${wcf.service.name}.certificate.encodedvalue" value=" " unless="${property::exists(wcf.service.name + '.certificate.encodedvalue')}" />
+				<property name="${wcf.service.name}.certificate.type" value="reference" unless="${property::exists(wcf.service.name + '.certificate.type')}"/>
+				<property name="${wcf.service.name}.certificate.validationmode" value="PeerOrChainTrust" unless="${property::exists(wcf.service.name + '.certificate.validationmode')}"/>
+				
+				<foreach item="String" property="wcf.servicebehavior.name" in="${property::get-value(wcf.service.name + '.servicebehavior.list')}" delim="," trim="Both"
+								 if="${property::exists(wcf.service.name + '.servicebehavior.list')}" >
+					<do>
+
+						<!-- TODO: Service-Specific Credentials Support -->
+
+						<property name="wcf.servicebehavior.servicecredentials.certificate.findtype" value="${property::get-value(wcf.service.name + '.certificate.findtype')}" />
+						<property name="wcf.servicebehavior.servicecredentials.certificate.findvalue" value="${property::get-value(wcf.service.name + '.certificate.findvalue')}" />
+						<property name="wcf.servicebehavior.servicecredentials.certificate.storelocation" value="${property::get-value(wcf.service.name + '.certificate.storelocation')}" />
+						<property name="wcf.servicebehavior.servicecredentials.certificate.storename" value="${property::get-value(wcf.service.name + '.certificate.storename')}" />
+						<property name="wcf.servicebehavior.servicecredentials.clientcertificate.validationmode" value="${property::get-value(wcf.service.name + '.certificate.validationmode')}" />
+
+						<call target="set-wcf-servicebehavior-servicecredentials-certificate" />
+					</do>
+				</foreach>
+
+				<property name="wcf.service.endpoint.identity.certificate.encodedvalue" value="${property::get-value(wcf.service.name + '.certificate.encodedvalue')}" />
+				<property name="wcf.service.endpoint.identity.certificatetype" value="${property::get-value(wcf.service.name + '.certificate.type')}" />
+				<property name="wcf.service.endpoint.identity.certificate.findtype" value="${property::get-value(wcf.service.name + '.certificate.findtype')}" />
+				<property name="wcf.service.endpoint.identity.certificate.findvalue" value="${property::get-value(wcf.service.name + '.certificate.findvalue')}" />
+				<property name="wcf.service.endpoint.identity.certificate.storelocation" value="${property::get-value(wcf.service.name + '.certificate.storelocation')}" />
+				<property name="wcf.service.endpoint.identity.certificate.storename" value="${property::get-value(wcf.service.name + '.certificate.storename')}" />
+
+				<call target="set-wcf-service-endpoint-identity-certificate"/>
+				
+			</do>
+		</foreach>
+
+	</target>
+
+	<target name="apply-wcf-client-config">
+
+		<!-- 
+			Loops through the client endpoint list and sets the client certificate behavior and endpoint address config
+			
+			Required Properties:
+			* config.filepath
+			* wcf.client.endpoint.list
+			* <endpoint-name>.address
+		-->
+
+		<foreach item="String" property="wcf.client.endpoint.name" in="${wcf.client.endpoint.list}" delim="," trim="Both">
+			<do>
+				
+				<fail if="${not property::exists(wcf.client.endpoint.name + '.address')}" message="Missing property ${wcf.client.endpoint.name + '.address'} ... you must specify an address for all endpoints" />
+
+				<echo message="Applying configuration to client endpoint ${wcf.client.endpoint.name}"/>
+				
+				<property name="${wcf.client.endpoint.name}.identity.certificatetype" value="reference" unless="${property::exists(wcf.client.endpoint.name + '.identity.certificatetype')}" />
+				<property name="${wcf.client.endpoint.name}.identity.certificate.findvalue" value="" unless="${property::exists(wcf.client.endpoint.name + '.identity.certificate.findvalue')}" />
+				<property name="${wcf.client.endpoint.name}.identity.certificate.findtype" value="FindByThumbprint" unless="${property::exists(wcf.client.endpoint.name + '.identity.certificate.findtype')}" />
+				<property name="${wcf.client.endpoint.name}.identity.certificate.storelocation" value="LocalMachine" unless="${property::exists(wcf.client.endpoint.name + '.identity.certificate.storelocation')}" />
+				<property name="${wcf.client.endpoint.name}.identity.certificate.storename" value="My" unless="${property::exists(wcf.client.endpoint.name + '.identity.certificate.storename')}" />
+				<property name="${wcf.client.endpoint.name}.identity.certificate.encodedvalue" value="" unless="${property::exists(wcf.client.endpoint.name + '.identity.certificate.encodedvalue')}" />
+				
+				<property name="wcf.client.endpoint.identity.certificatetype" value="${property::get-value(wcf.client.endpoint.name + '.identity.certificatetype')}"/>
+				<property name="wcf.client.endpoint.identity.certificate.findtype" value="${property::get-value(wcf.client.endpoint.name + '.identity.certificate.findtype')}"/>
+				<property name="wcf.client.endpoint.identity.certificate.findvalue" value="${property::get-value(wcf.client.endpoint.name + '.identity.certificate.findvalue')}"/>
+				<property name="wcf.client.endpoint.identity.certificate.storelocation" value="${property::get-value(wcf.client.endpoint.name + '.identity.certificate.storelocation')}"/>
+				<property name="wcf.client.endpoint.identity.certificate.storename" value="${property::get-value(wcf.client.endpoint.name + '.identity.certificate.storename')}"/>
+				<property name="wcf.client.endpoint.identity.certificate.encodedvalue" value="${property::get-value(wcf.client.endpoint.name + '.identity.certificate.encodedvalue')}"/>
+
+				<echo if="${string::get-length(wcf.client.endpoint.identity.certificate.findvalue) == 0 and string::get-length(wcf.client.endpoint.identity.certificate.encodedvalue) == 0}"
+							message="Endpoint ${wcf.client.endpoint.name} is missing identity certificate configuration, skipping set-wcf-client-endpoint-identity-certificate..."/>
+				
+				<if test="${string::get-length(wcf.client.endpoint.identity.certificate.findvalue) > 0 or string::get-length(wcf.client.endpoint.identity.certificate.encodedvalue) > 0}">
+					<!-- Set Client Endpoint Certificate -->
+					<call target="set-wcf-client-endpoint-identity-certificate" />
+				</if>
+				
+				<property name="wcf.endpoint.address" value="${property::get-value(wcf.client.endpoint.name + '.address')}" />
+				
+				<call target="set-wcf-client-endpoint-address" />
+			</do>
+		</foreach>
+
+		<foreach item="String" property="wcf.client.endpoint.behavior" in="${wcf.client.endpoint.behavior.list}" delim="," trim="Both"
+						 if="${property::exists('wcf.client.endpoint.behavior.list')}">
+			<do>
+
+				<echo message="Applying configuration to client endpoint behavior ${wcf.client.endpoint.behavior}" />
+				
+				<property name="${wcf.client.endpoint.behavior}.certificate.findtype" value="FindByThumbprint" 
+								  unless="${property::exists(wcf.client.endpoint.behavior + '.certificate.findtype')}" />
+				<property name="${wcf.client.endpoint.behavior}.certificate.findvalue" value=""
+								  unless="${property::exists(wcf.client.endpoint.behavior + '.certificate.findvalue')}" />
+				<property name="${wcf.client.endpoint.behavior}.certificate.storelocation" value="LocalMachine"
+								  unless="${property::exists(wcf.client.endpoint.behavior + '.certificate.storelocation')}" />
+				<property name="${wcf.client.endpoint.behavior}.certificate.storename" value="My"
+								  unless="${property::exists(wcf.client.endpoint.behavior + '.certificate.storename')}" />
+				<property name="${wcf.client.endpoint.behavior}.servicecertificate.validationmode" value="PeerOrChainTrust"
+								  unless="${property::exists(wcf.client.endpoint.behavior + '.servicecertificate.validationmode')}" />
+
+				<!--Set Endpoint Behavior -->
+				<property name="wcf.endpointbehavior.name" value="${wcf.client.endpoint.behavior}" />
+				
+				<property name="wcf.endpointbehavior.clientcredentials.certificate.findtype" value="${property::get-value(wcf.client.endpoint.behavior + '.certificate.findtype')}" />
+				<property name="wcf.endpointbehavior.clientcredentials.certificate.findvalue" value="${property::get-value(wcf.client.endpoint.behavior + '.certificate.findvalue')}" />
+				<property name="wcf.endpointbehavior.clientcredentials.certificate.storelocation" value="${property::get-value(wcf.client.endpoint.behavior + '.certificate.storelocation')}" />
+				<property name="wcf.endpointbehavior.clientcredentials.certificate.storename" value="${property::get-value(wcf.client.endpoint.behavior + '.certificate.storename')}" />
+				<property name="wcf.endpointbehavior.clientcredentials.servicecertificate.validationmode" value="${property::get-value(wcf.client.endpoint.behavior + '.servicecertificate.validationmode')}" />
+
+				<echo if="${string::get-length(wcf.endpointbehavior.clientcredentials.certificate.findvalue) == 0}"
+							message="Missing client credentials certificate for ${wcf.client.endpoint.behavior}, skipping set-wcf-endpoint-behavior-clientcertificate"/>
+				
+				<if test="${string::get-length(wcf.endpointbehavior.clientcredentials.certificate.findvalue) > 0}">
+					<call target="set-wcf-endpointbehavior-clientcertificate" />
+				</if>
+				
+			</do>
+		</foreach>
+		
+	</target>
+	
+	<target name="set-wcf-client-endpoint-address">
+		<!-- 
+			In Sets the endpoint address with the value in the wcf.endpoint.address property for the client endpoint specified by wcf.client.endpoint.name property
+			
+			Required Properties:
+			* config.filepath - path to the WCF Configuration File
+			* wcf.client.endpoint.name - the name of the endpoint on which to set the address value
+			* wcf.client.endpoint.address - the address to set on the endpoint specified by wcf.client.endpoint.name
+		-->
+
+		<!-- TODO: insert client endpoint if it doesn't already exist -->
+
+		<xmlpoke
+			file="${config.filepath}"
+			xpath="configuration/system.serviceModel/client/endpoint[@name='${wcf.client.endpoint.name}']/@address"
+			value="${wcf.endpoint.address}" />
+	</target>
+
+	<target name="set-wcf-endpointbehavior-clientcertificate">
+		<!--
+			Sets the certificate details on a service endpoint behavior config for locating the client authentication certificate
+			
+			Required Properties
+			* config.filepath
+			* wcf.endpointbehavior.name
+			* wcf.endpointbehavior.clientcredentials.certificate.findvalue
+			* wcf.endpointbehavior.clientcredentials.certificate.findtype  (see http://msdn.microsoft.com/en-us/library/system.security.cryptography.x509certificates.x509findtype.aspx for valid values)
+			* wcf.endpointbehavior.clientcredentials.certificate.storelocation
+			* wcf.endpointbehavior.clientcredentials.certificate.storename
+			* wcf.endpointbehavior.clientcredentials.servicecertificate.validationmode
+		-->
+
+		<echo message="Setting Certificate for endpoint behavior '${wcf.endpointbehavior.name}' on config file ${config.filepath}:" />
+		<echo message="Find Type = ${wcf.endpointbehavior.clientcredentials.certificate.findtype}" />
+		<echo message="Find Value = ${wcf.endpointbehavior.clientcredentials.certificate.findvalue}" />
+		<echo message="Store Location = ${wcf.endpointbehavior.clientcredentials.certificate.storelocation}" />
+		<echo message="Store Name = ${wcf.endpointbehavior.clientcredentials.certificate.storename}" />
+		<echo message="Service Certificate Validation Mode = ${wcf.endpointbehavior.clientcredentials.servicecertificate.validationmode}"/>
+
+		<xmlpoke file="${config.filepath}"
+						 xpath="/configuration/system.serviceModel/behaviors/endpointBehaviors/behavior[@name='${wcf.endpointbehavior.name}']/clientCredentials"
+						 value="&lt;clientCertificate findValue=&quot;&quot;
+						                   storeLocation=&quot;&quot; storeName=&quot;&quot; x509FindType=&quot;&quot; /&gt;
+										&lt;serviceCertificate&gt;
+											&lt;authentication certificateValidationMode=&quot;&quot; /&gt;
+										&lt;/serviceCertificate&gt;" />
+		
+		<xmlpoke
+			file="${config.filepath}"
+			xpath="/configuration/system.serviceModel/behaviors/endpointBehaviors/behavior[@name='${wcf.endpointbehavior.name}']/clientCredentials/clientCertificate/@findValue"
+			value="${wcf.endpointbehavior.clientcredentials.certificate.findvalue}" />
+
+		<xmlpoke
+			file="${config.filepath}"
+			xpath="/configuration/system.serviceModel/behaviors/endpointBehaviors/behavior[@name='${wcf.endpointbehavior.name}']/clientCredentials/clientCertificate/@x509FindType"
+			value="${wcf.endpointbehavior.clientcredentials.certificate.findtype}" />
+
+		<xmlpoke
+		  file="${config.filepath}"
+			xpath="/configuration/system.serviceModel/behaviors/endpointBehaviors/behavior[@name='${wcf.endpointbehavior.name}']/clientCredentials/clientCertificate/@storeLocation"
+			value="${wcf.endpointbehavior.clientcredentials.certificate.storelocation}" />
+
+		<xmlpoke
+		  file="${config.filepath}"
+			xpath="/configuration/system.serviceModel/behaviors/endpointBehaviors/behavior[@name='${wcf.endpointbehavior.name}']/clientCredentials/clientCertificate/@storeName"
+			value="${wcf.endpointbehavior.clientcredentials.certificate.storename}" />
+
+		<xmlpoke
+			file="${config.filepath}"
+			xpath="/configuration/system.serviceModel/behaviors/endpointBehaviors/behavior[@name='${wcf.endpointbehavior.name}']/clientCredentials/serviceCertificate/authentication/@certificateValidationMode"
+			value="${wcf.endpointbehavior.clientcredentials.servicecertificate.validationmode}" />
+
+	</target>
+
+	<target name="set-wcf-servicebehavior-servicecredentials-certificate">
+		<!--
+			Sets the details for locating the certificate in the service behavior's service credentials configuration
+			
+			Required Properties:
+			* config.filepath
+			* wcf.servicebehavior.name
+			* wcf.servicebehavior.servicecredentials.certificate.findvalue
+			* wcf.servicebehavior.servicecredentials.certificate.findtype  (see http://msdn.microsoft.com/en-us/library/system.security.cryptography.x509certificates.x509findtype.aspx for valid values)
+			* wcf.servicebehavior.servicecredentials.certificate.storelocation
+			* wcf.servicebehavior.servicecredentials.certificate.storename
+			* wcf.servicebehavior.servicecredentials.clientcertificate.validationmode  - e.g. None, PeerOrChainTrust, ChainTrust ...
+			-->
+
+		<property name="wcf.servicebehavior.servicecredentials.clientcertificate.validationmode" 
+							value="PeerOrChainTrust" 
+							unless="${property::exists('wcf.servicebehavior.servicecredentials.clientcertificate.validationmode')}" />
+		
+		<echo message="Setting Service Credentials Certificate for service behavior '${wcf.servicebehavior.name}' on config file ${config.filepath}:" />
+		<echo message="Find Type = ${wcf.servicebehavior.servicecredentials.certificate.findtype}" />
+		<echo message="Find Value = ${wcf.servicebehavior.servicecredentials.certificate.findvalue}" />
+		<echo message="Store Location = ${wcf.servicebehavior.servicecredentials.certificate.storelocation}" />
+		<echo message="Store Name = ${wcf.servicebehavior.servicecredentials.certificate.storename}" />
+		<echo message="Client Validation Mode = ${wcf.servicebehavior.servicecredentials.clientcertificate.validationmode}" />
+
+		<xmlpoke file="${config.filepath}"
+						 xpath="/configuration/system.serviceModel/behaviors/serviceBehaviors/behavior[@name='${wcf.servicebehavior.name}']/serviceCredentials"
+						 value="&lt;serviceCertificate findValue=&quot;&quot;
+						                   storeLocation=&quot;&quot; storeName=&quot;&quot; x509FindType=&quot;&quot; /&gt;
+										&lt;clientCertificate&gt;
+											&lt;authentication certificateValidationMode=&quot;None&quot; /&gt;
+										&lt;/clientCertificate&gt;" />
+
+		<xmlpoke
+			file="${config.filepath}"
+			xpath="/configuration/system.serviceModel/behaviors/serviceBehaviors/behavior[@name='${wcf.servicebehavior.name}']/serviceCredentials/serviceCertificate/@findValue"
+			value="${wcf.servicebehavior.servicecredentials.certificate.findvalue}" />
+
+		<xmlpoke
+			file="${config.filepath}"
+			xpath="/configuration/system.serviceModel/behaviors/serviceBehaviors/behavior[@name='${wcf.servicebehavior.name}']/serviceCredentials/serviceCertificate/@x509FindType"
+			value="${wcf.servicebehavior.servicecredentials.certificate.findtype}" />
+
+		<xmlpoke
+		  file="${config.filepath}"
+			xpath="/configuration/system.serviceModel/behaviors/serviceBehaviors/behavior[@name='${wcf.servicebehavior.name}']/serviceCredentials/serviceCertificate/@storeLocation"
+			value="${wcf.servicebehavior.servicecredentials.certificate.storelocation}" />
+
+		<xmlpoke
+		  file="${config.filepath}"
+			xpath="/configuration/system.serviceModel/behaviors/serviceBehaviors/behavior[@name='${wcf.servicebehavior.name}']/serviceCredentials/serviceCertificate/@storeName"
+			value="${wcf.servicebehavior.servicecredentials.certificate.storename}" />
+
+		<xmlpoke
+			file="${config.filepath}"
+			xpath="/configuration/system.serviceModel/behaviors/serviceBehaviors/behavior[@name='${wcf.servicebehavior.name}']/serviceCredentials/clientCertificate/authentication/@certificateValidationMode"
+			value="${wcf.servicebehavior.servicecredentials.clientcertificate.validationmode}" />
+		
+	</target>
+
+	<target name="set-wcf-service-endpoint-identity-certificate">
+		<!--
+			Sets the details for locating the certificate in the service behavior's service credentials configuration
+			
+			Required Properties:
+			* config.filepath
+			* wcf.service.name
+			* wcf.service.endpoint.identity.certificatetype  - reference or encodedvalue
+			
+			** The following parameters are required for certificatetype = reference
+			* wcf.service.endpoint.identity.certificate.findvalue
+			* wcf.service.endpoint.identity.certificate.findtype  (see http://msdn.microsoft.com/en-us/library/system.security.cryptography.x509certificates.x509findtype.aspx for valid values)
+			* wcf.service.endpoint.identity.certificate.storelocation
+			* wcf.service.endpoint.identity.certificate.storename
+			
+			** The following parameters are required for certificatetype = encodedvalue
+			* wcf.service.endpoint.identity.certificate.encodedvalue
+			-->
+
+		<echo message="Setting Service Endpoint Identity Certificate for service '${wcf.service.name}' on config file ${config.filepath}:" />
+
+		<!-- Default is Certificate by Reference -->
+		<property name="wcf.service.endpoint.identity.certificatetype" value="reference" unless="${property::exists('wcf.service.endpoint.identity.certificatetype')}" />
+
+		<if test="${wcf.service.endpoint.identity.certificatetype == 'reference'}">
+			<echo message="Find Type = ${wcf.service.endpoint.identity.certificate.findtype}" />
+			<echo message="Find Value = ${wcf.service.endpoint.identity.certificate.findvalue}" />
+			<echo message="Store Location = ${wcf.service.endpoint.identity.certificate.storelocation}" />
+			<echo message="Store Name = ${wcf.service.endpoint.identity.certificate.storename}" />
+			
+			<xmlpoke
+				file="${config.filepath}"
+				xpath="/configuration/system.serviceModel/services/service[@name='${wcf.service.name}']/endpoint/identity"
+				value="&lt;certificateReference findValue=&quot;&quot;
+						                   storeLocation=&quot;&quot; storeName=&quot;&quot; x509FindType=&quot;&quot; /&gt;" />
+				
+			<xmlpoke
+				file="${config.filepath}"
+				xpath="/configuration/system.serviceModel/services/service[@name='${wcf.service.name}']/endpoint/identity/certificateReference/@findValue"
+				value="${wcf.service.endpoint.identity.certificate.findvalue}" />
+
+			<xmlpoke
+				file="${config.filepath}"
+				xpath="/configuration/system.serviceModel/services/service[@name='${wcf.service.name}']/endpoint/identity/certificateReference/@x509FindType"
+				value="${wcf.service.endpoint.identity.certificate.findtype}" />
+
+			<xmlpoke
+				file="${config.filepath}"
+				xpath="/configuration/system.serviceModel/services/service[@name='${wcf.service.name}']/endpoint/identity/certificateReference/@storeLocation"
+				value="${wcf.service.endpoint.identity.certificate.storelocation}" />
+
+			<xmlpoke
+				file="${config.filepath}"
+				xpath="/configuration/system.serviceModel/services/service[@name='${wcf.service.name}']/endpoint/identity/certificateReference/@storeName"
+				value="${wcf.service.endpoint.identity.certificate.storename}" />
+		</if>
+
+		<if test="${wcf.service.endpoint.identity.certificatetype == 'encodedvalue'}">
+			<echo>
+				Encoded Certificate Value:
+				${wcf.service.endpoint.identity.certificate.encodedvalue}
+			</echo>
+			
+			<xmlpoke
+				file="${config.filepath}"
+				xpath="/configuration/system.serviceModel/services/service[@name='${wcf.service.name}']/endpoint/identity"
+				value="&lt;certificate encodedValue=&quot;&quot; /&gt;" />
+
+			<xmlpoke
+				file="${config.filepath}"
+				xpath="/configuration/system.serviceModel/services/service[@name='${wcf.service.name}']/endpoint/identity/certificate"
+				value="${wcf.service.endpoint.identity.certificate.encodedvalue}" />
+			
+		</if>
+
+	</target>
+	
+	<target name="set-wcf-client-endpoint-identity-certificate">
+		<!-- 
+			Sets the details for locating the certificate used to identify the service for a given endpoint
+			
+			Required Properties:
+			* config.filepath
+			* wcf.client.endpoint.name
+			
+			Optional Properties
+			* wcf.client.endpoint.identity.certificatetype - reference or encodedvalue - DEFAULT=reference
+			
+			** The following are required for certificatetype = reference
+			* wcf.client.endpoint.identity.certificate.findvalue
+			* wcf.client.endpoint.identity.certificate.findtype
+			* wcf.client.endpoint.identity.certificate.storelocation
+			* wcf.client.endpoint.identity.certificate.storename
+			
+			** The following are required for certificatetype = encodedvalue
+			* wcf.client.endpoint.identity.certificate.encodedvalue
+		-->
+
+		<property name="wcf.client.endpoint.identity.certificatetype" value="reference" unless="${property::exists('wcf.client.endpoint.identity.certificatetype')}"/>
+		
+		<echo message="Setting Client Endpoint Identity Certificate Reference for endpoint '${wcf.client.endpoint.name}' on config file ${config.filepath}:" />
+
+		<if test="${wcf.client.endpoint.identity.certificatetype == 'reference'}">
+			<echo message="Find Type = ${wcf.client.endpoint.identity.certificate.findtype}" />
+			<echo message="Find Value = ${wcf.client.endpoint.identity.certificate.findvalue}" />
+			<echo message="Store Location = ${wcf.client.endpoint.identity.certificate.storelocation}" />
+			<echo message="Store Name = ${wcf.client.endpoint.identity.certificate.storename}" />
+
+			<xmlpoke
+				file="${config.filepath}"
+				xpath="/configuration/system.serviceModel/client/endpoint[@name='${wcf.client.endpoint.name}']/identity"
+				value="&lt;certificateReference findValue=&quot;&quot;
+						                   storeLocation=&quot;&quot; storeName=&quot;&quot; x509FindType=&quot;&quot; /&gt;" />
+			<!--
+			/configuration/system.serviceModel/client/endpoint[@name='${wcf.client.endpoint.name}']/identity/certificateReference
+			-->
+
+			<xmlpoke
+				file="${config.filepath}"
+				xpath="/configuration/system.serviceModel/client/endpoint[@name='${wcf.client.endpoint.name}']/identity/certificateReference/@findValue"
+				value="${wcf.client.endpoint.identity.certificate.findvalue}" />
+
+			<xmlpoke
+				file="${config.filepath}"
+				xpath="/configuration/system.serviceModel/client/endpoint[@name='${wcf.client.endpoint.name}']/identity/certificateReference/@x509FindType"
+				value="${wcf.client.endpoint.identity.certificate.findtype}" />
+
+			<xmlpoke
+				file="${config.filepath}"
+				xpath="/configuration/system.serviceModel/client/endpoint[@name='${wcf.client.endpoint.name}']/identity/certificateReference/@storeLocation"
+				value="${wcf.client.endpoint.identity.certificate.storelocation}" />
+
+			<xmlpoke
+				file="${config.filepath}"
+				xpath="/configuration/system.serviceModel/client/endpoint[@name='${wcf.client.endpoint.name}']/identity/certificateReference/@storeName"
+				value="${wcf.client.endpoint.identity.certificate.storename}" />
+		</if>
+
+		<if test="${wcf.client.endpoint.identity.certificatetype == 'encodedvalue'}">
+			<echo>
+				Encoded Certificate Value:
+				${wcf.client.endpoint.identity.certificate.encodedvalue}
+			</echo>
+
+			<xmlpoke
+				file="${config.filepath}"
+				xpath="/configuration/system.serviceModel/client/endpoint[@name='${wcf.client.endpoint.name}']/identity"
+				value="&lt;certificate encodedValue=&quot;${wcf.client.endpoint.identity.certificate.encodedvalue}&quot; /&gt;" />
+		</if>
+		
+	</target>
+
+</project>

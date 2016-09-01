@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<project name="Amadeus Environment Setup Build File" xmlns="http://nant.sf.net/release/0.92/nant.xsd">
+	
+	<if test="${environment::variable-exists('DEV_BUILD_ENVIRONMENT_PATH')}" >
+		<!-- Allow for development environment override of environment variables -->
+		<property name="environmentFilePath" value="${environment::get-variable('DEV_BUILD_ENVIRONMENT_PATH')}" />		
+	</if>
+
+	<choose>
+		<when test="${property::exists('environmentFilePath')}">
+			<include buildfile="${environmentFilePath}" verbose="true" failonerror="true" />
+		</when>
+		<when test="${environment::variable-exists('BUILD_SERVER_NAME')}">
+			<include buildfile="${buildfile.includes.dir}\${environment::get-variable('BUILD_SERVER_NAME')}.include" verbose="true" failonerror="true" />
+		</when>
+		<otherwise>
+			<include buildfile="D:\Environment.include" verbose="true" failonerror="true" /> <!-- The default location -->
+		</otherwise>
+	</choose>
+	
+</project>

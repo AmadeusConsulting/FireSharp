@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<project name="NAnt Schema Generator" default="gen-schemas" basedir="." xmlns="http://nant.sf.net/release/0.92/nant.xsd">
+ <!-- 
+	Generates a schema file for NAnt with NAntcontrib included
+ -->
+ <property name="version" value="0.92" overwrite="false" />
+ <property name="bin.directory" value="${project::get-base-directory()}\current\bin"  overwrite="false"  />
+ <property name="output.directories" 
+	value="D:\Program Files (x86)\Microsoft Visual Studio 10.0\Xml\Schemas,
+		   D:\Program Files (x86)\Microsoft Visual Studio 11.0\Xml\Schemas"  
+		   overwrite="false" />
+ 
+ <loadtasks assembly="${bin.directory}\extensions\common\neutral\NAntContrib\NAnt.Contrib.Tasks.dll" />
+ 
+ <target name="gen-schemas">
+  
+  <foreach item="String" property="out.dir" in="${output.directories}" delim="," trim="Both">
+	<do>
+		<nantschema output="${out.dir}\nant-${version}.xsd" target-ns="http://nant.sf.net/release/${version}/nant.xsd"/>
+	</do>
+  </foreach>
+
+  </target>
+</project>

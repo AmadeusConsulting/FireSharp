@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<project name="NAnt Custom Schema Generator for Amadeus Build Process"  default="generate-xsd" basedir="." xmlns="http://nant.sf.net/release/0.92/nant.xsd">
+	
+	<property name="buildfile.includes.dir" value="${project::get-base-directory()}" />
+	
+	<!-- Override these properties from the command line as necessary -->
+	<property name="nant.bin.dir" value="E:\nant\nant-0.92\bin" unless="${property::exists('nant.bin.dir')}" />
+	<property name="programfiles.dir" value="C:\Program Files (x86)\" unless="${property::exists('programfiles.dir')}" />
+	<property name="visualstudio.version.list" value="10.0,11.0,12.0,14.0" unless="${property::exists('visualstudio.versions')}" />
+
+	<loadtasks assembly="${nant.bin.dir}\extensions\common\neutral\NAntContrib\NAnt.Contrib.Tasks.dll" />
+	
+	<include buildfile="${buildfile.includes.dir}/Amadeus.include" />
+	
+	<!-- projects that import custom nant task dlls -->
+	
+	<include buildfile="${buildfile.includes.dir}/BusinessIntelligenceDevelopmentStudio.include" />
+	<include buildfile="${buildfile.includes.dir}/FluentMigrator.include" />
+	
+
+	<target name="generate-xsd">
+		<property name="schema.output.file" value="${path::combine(path::get-temp-path(), 'nant-0.9.2.xsd')}" />
+		<delete file="${schema.output.file}" unless="${not file::exists(schema.output.file)}" />
+		
+		<echo message="Creating NAnt schema file at ${schema.output.file} ..." />
+		<nantschema output="${schema.output.file}" />
+		
+		<foreach item="String" property="visualstudio.version" in="${visualstudio.version.list}" delim="," trim="Both">
+			<do>
+				<property name="visualstudio.xmlschemas.dir"  value="${path::combine('Microsoft Visual Studio ' + visualstudio.version, 'Xml/Schemas')}" />
+				
+				<property name="schema.copy.destination" value="${path::combine(programfiles.dir, visualstudio.xmlschemas.dir)}" />
+				
+				<echo message="Attempting to copy NAnt schema file to ${schema.copy.destination} ..." />
+				
+				<copy todir="${schema.copy.destination}" file="${schema.output.file}" unless="${not directory::exists(schema.copy.destination)}" />
+			</do>
+		</foreach>
+	</target>
+
+</project>

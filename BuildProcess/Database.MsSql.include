@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<project name="Microsoft SQL Database block" xmlns="http://nant.sf.net/release/0.85/nant.xsd">
+	<!-- 
+		Required Properties
+		
+		artifactLocation				- The base file path where the snapshot will be saved. (Defined by deployArtifacts)
+		databaseSync.DeploymentDatabase	- The database to be the destination of the sync.
+		databaseSync.DeploymentServer	- The server of the database to be the destination of the sync.
+		databaseSync.SnapshotDatabase	- The database to be the source of the sync.
+		databaseSync.SnapshotName		- The name (without extension) for the snapshot file.
+		databaseSync.SnapshotServer		- The server of the database to be the source of the sync.
+	-->
+	
+	<!-- Event Wire-up -->
+	<property name="event" value="artifactsDeployed" />
+	<property name="subscriber" value="createDatabaseSchemaSnapshot" />
+	<call target="subscribe" />
+	
+	<property name="event" value="pushing" />
+	<property name="subscriber" value="applyDatabaseSchemaSnapshot" />
+	<call target="subscribe" />
+	
+	
+	<!-- Event Handlers -->
+	<target
+		name="createDatabaseSchemaSnapshot"
+		description="Creates a database schema snapshot using SQL Compare"
+		unless="${property::exists('env.Development') and env.Development == 'true'}" >
+		<exec
+			program="${env.SqlCompareLocation}"
+			commandline="/Server1:${databaseSync.SnapshotServer} /database1:${databaseSync.SnapshotDatabase} /makesnapshot:${artifactLocation}/${databaseSync.SnapshotName}.snp /out:${artifactLocation}/SnapShotLog.txt /force" />
+	</target>
+
+	<target
+		name="applyDatabaseSchemaSnapshot"
+		description="Synchronizes the database schema by applying a previously generated snapshot"
+		unless="${property::exists('env.Development') and env.Development == 'true'}" >
+		<exec
+			program="${env.SqlCompareLocation}"
+			commandline="/Include:Identical /snapshot1:${artifactLocation}/${databaseSync.SnapshotName}.snp /Server2:${databaseSync.DeploymentServer} /Database2:${databaseSync.DeploymentDatabase} /synchronize /out:${artifactLocation}/${databaseSync.DeploymentDatabase}CompareAndSynchronizeLog.txt /force" />
+	</target>
+</project>
