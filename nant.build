@@ -1,0 +1,120 @@
+<?xml version="1.0"?>
+<project name="Amadeus - FireSharp" default="build" basedir="." xmlns="http://nant.sf.net/release/0.92/nant.xsd">
+
+  <!-- Copy this file to the root of your Project, rename it to nant.build, and update the values as needed (including the project name above!) -->
+  
+  <!-- 
+    Build artifacts will be stored in a build/ folder at the root of the project by default, 
+    so omit that folder from source control, or change it by setting the local.artifact.folder.path property
+    to a different relative folder path.
+   -->
+  <property name="use.local.artifact.folder" value="true" />
+
+  <!-- Define the path to the included build scripts (Default is a Folder called BuildProcess at the root of the source tree)-->
+  <property name="buildfile.includes.dir" value="${project::get-base-directory()}\BuildProcess" />
+
+  <!-- LIST OF SOLUTION FILES (INCLUDING THE .SLN EXTENSION), COMMA SEPARATED, WHICH SHOULD BE BUILT AS A PART OF THIS BUILD PROJECT -->
+  <property name="compile.Solution.list" value="FireSharp.sln" />
+
+  <!-- subscribe the same target to the creating website ZIP fileset as well -->
+
+  <!-- General Settings -->
+  <property name="clientName" value="Amadeus Consulting" />
+  <property name="projectNames" value="FireSharp,FireSharp.GeoFire,FireSharp.Serialization.JsonNet,FireSharp.Serialization.ServiceStack,FireSharp.Test.Console,FireSharp.Tests,FireSharp.WebApp" />
+
+  <!-- Building Blocks -->
+  
+  <!-- This is the main Shared Build Script, Required in all Build Projects -->
+  <include buildfile="${buildfile.includes.dir}\Amadeus.include" />
+
+  <!-- 
+    If you're using Visual Studio 2015, you'll need to use MSBuild v14.0 which is installed as a separate package.  
+    The include below wires that up for you. 
+  -->
+  <include buildfile="${buildfile.includes.dir}\VisualStudio2015.include" />
+
+  <!-- The main include file required for building solutions -->
+  <include buildfile="${buildfile.includes.dir}\MSBuild.include" />
+
+  <property name="nuget.package.projects" value="FireSharp,FireSharp.GeoFire" />
+
+  <!-- The include below is required to ensure nuget packages are restored before building --> 
+  <include buildfile="${buildfile.includes.dir}\nuget.include" />
+
+  <!-- Web Applications -->
+  <include buildfile="${buildfile.includes.dir}\Deployment.WebApplication.include" />
+
+  <!-- NUnit Test Projects -->
+  <!-- If you're using NUnit v 3.x you'll need to uncomment the node below -->
+  <!--<include buildfile="${buildfile.includes.dir}\NUnit3.include" />-->
+  <include buildfile="${buildfile.includes.dir}\UnitTest.NUnit.include" />
+  
+  <!-- Build Process Hooks -->
+  
+  <!--   Include property values here, depending on the aspects of your project    --> 
+
+  <!-- WEB APPLICATION PROJECT NAMES -->
+  <property name="webApplicationProjectNames" value="FireSharp.WebApp" />
+
+  <!-- NUnit Project Names -->
+  <property name="unitTestProjectNames" value="FireSharp.Tests" />
+  
+  <!-- 
+    If your NUNIT Project is not a class library (i.e. doesn't produce a .dll file), you'll need to set the 
+    NUNIT_PROJECT_NAME.binaryfile.extension value to the file extension it should look for (like .exe for a console application) 
+  -->
+  <property name="FireSharp.Tests.binaryfile.extension" value=".exe" />
+
+  <!-- 
+    If you have AppSettings that need to be updated when pushing to an environment, specify a comma separated list of the keys here.  
+    The values will be set by properties in the deploy targets below 
+   -->
+  <property name="FireSharp.WebApp.appsetting.keys" value="" />
+  
+  <!-- Event Handlers - Attach to events to hook into certain stages in the build process -->
+  <!-- 
+	SUBSCRIBE TO THE ARTIFACTS-DEPLOYING EVENT TO COPY CUSTOM ARTIFACTS TO THE ARTIFACTS DIRECTORY
+	<property name="event" value="artifactsDeploying" />
+	<property name="subscriber" valuer="" />
+	<call target="subscribe" />
+	-->
+
+  <property name="event" value="before-run-nunit-test" />
+  <property name="subscriber" value="update-integration-test-config" />
+  <call target="subscribe" />
+
+  <!-- Project-specific targets -->
+
+  <target name="local-build" description="Build the application in Release Mode">
+    <!-- This target here to facilitate running in VS 2015 via NAnt Runner Extension -->
+    <property name="BuildLabel" value="1.0.0.0" />
+    <call target="build" />
+  </target>
+
+  <target name="local-unit-tests" description="Run unit tests locally" depends="local-build">
+    <property name="sourceLocation" value="${project::get-base-directory()}" />
+    <call target="nunit-run-tests" />
+  </target>
+
+
+  <target name="update-integration-test-config">
+      <if test="${nunit.project == 'FireSharp.Tests'}">
+
+          <if test="${environment::variable-exists('FIRESHARP_DATABASE_URL') and environment::variable-exists('FIRESHARP_DATABASE_SECRET')}">
+              <property name="config.filepath" value="${nunit.project.deploy.path}\${nunit.project.output.filename}${nunit.project.output.fileext}.config" />
+
+              <property name="appsetting.key" value="FireSharp.Tests.FirebaseUrl" />
+              <property name="appsetting.value" value="${environment::get-variable('FIRESHARP_DATABASE_URL')}" />
+
+              <call target="update-appsetting" />
+
+              <property name="appsetting.key" value="FireSharp.Tests.FirebaseSecret" />
+              <property name="appsetting.value" value="${environment::get-variable('FIRESHARP_DATABASE_SECRET')}" />
+
+              <call target="update-appsetting" />
+          </if>
+          
+      </if>
+  </target>
+  
+</project>

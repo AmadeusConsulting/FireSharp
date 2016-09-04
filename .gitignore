@@ -109,3 +109,7 @@ UpgradeLog*.XML
 project.lock.json
 project.fragment.lock.json
 artifacts/
+
+# nant artifacts
+build/
+*.nunit-results.xml
