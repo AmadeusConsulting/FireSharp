@@ -43,6 +43,12 @@
 
 					<mkdir dir="${unitTestDeploymentLocation}"/>
 
+          <delete>
+            <fileset basedir="${unitTestDeploymentLocation}">
+              <include name="**/*" />
+            </fileset>
+          </delete>
+
 					<copy todir="${unitTestDeploymentLocation}">
 						<fileset basedir="${nunit.project.source.location}\bin\Release">
 							<include name="**/*" />

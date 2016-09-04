@@ -49,13 +49,15 @@
 				<echo message="NuGet Pacakge Version is ${property::get-value(nuget.project.packageversion.propertyname)}"/>
 				<echo message="NuGet Repository Location is ${artifactLocation}"/>
 
-				<xmlpoke file="${nuget.sourceLocation}\${nuget.projectName}\${nuget.projectName}.nuspec"
-								 xpath="/ng:package/ng:metadata/ng:version"
-								 value="${property::get-value(nuget.project.packageversion.propertyname)}" >
-					<namespaces>
-						<namespace prefix="ng" uri="${nuget.nuspec.xmlnamespace}" />
-					</namespaces>
-				</xmlpoke>
+        <if test="${property::exists('nuget.package.xmlpoke.version') and property::get-value('nuget.package.xmlpoke.version') == 'true'}">
+          <xmlpoke file="${nuget.sourceLocation}\${nuget.projectName}\${nuget.projectName}.nuspec"
+                   xpath="/ng:package/ng:metadata/ng:version"
+                   value="${property::get-value(nuget.project.packageversion.propertyname)}" >
+            <namespaces>
+              <namespace prefix="ng" uri="${nuget.nuspec.xmlnamespace}" />
+            </namespaces>
+          </xmlpoke>
+        </if>
 
 				<property name="markdown.readme.file" value="${nuget.sourceLocation}\${nuget.projectName}\README.md"/>
 				
@@ -75,6 +77,7 @@
 					<arg value="pack" />
 					<arg file="${nuget.sourceLocation}\${nuget.projectName}\${nuget.projectName}.nuspec" />
 					<arg line="/Verbosity detailed" />
+          <arg line="/Version ${parsedversion}" />
 					<arg value="/OutputDirectory" />
 					<arg file="${artifactLocation}" /> 
 					<environment>
