@@ -61,7 +61,7 @@ nml6IxDNUFXUW4HUavLt/E3LRJgnUcACODlybIoQqlrPh/iuao89wfki7vk+6Dhn
         public void GenerateCustomToken()
         {
             var serviceAccountEmailAddress = "a-fake@invalid.eml";
-            var tokenGenerator = new CustomFirebaseTokenGenerator(serviceAccountEmailAddress, PrivateKey);
+            var tokenGenerator = new FirebaseCustomTokenGenerator(serviceAccountEmailAddress, PrivateKey);
 
             var token = tokenGenerator.GenerateToken(
                 "123",
@@ -78,11 +78,17 @@ nml6IxDNUFXUW4HUavLt/E3LRJgnUcACODlybIoQqlrPh/iuao89wfki7vk+6Dhn
 
             var payload = JsonConvert.DeserializeObject<Dictionary<string, object>>(json);
 
-            Assert.AreEqual("RS256", payload["alg"]);
             Assert.AreEqual(serviceAccountEmailAddress, payload["iss"]);
             Assert.AreEqual(serviceAccountEmailAddress, payload["sub"]);
             Assert.AreEqual("https://identitytoolkit.googleapis.com/google.identity.identitytoolkit.v1.IdentityToolkit", payload["aud"]);
             Assert.AreEqual("123", payload["uid"]);
+        }
+
+        [Test]
+        public void GenerateValidToken()
+        {
+            // TODO: write custom token validator test that POSTs to:
+            // https://www.googleapis.com/identitytoolkit/v3/relyingparty/verifyCustomToken?key=<API_KEY>
         }
     }
 }

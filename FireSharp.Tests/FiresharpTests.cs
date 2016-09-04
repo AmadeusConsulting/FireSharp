@@ -5,7 +5,10 @@ using FireSharp.Interfaces;
 using FireSharp.Tests.Models;
 using NUnit.Framework;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Configuration;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -13,29 +16,44 @@ namespace FireSharp.Tests
 {
     public class FiresharpTests : TestBase
     {
-        protected const string BasePath = "https://firesharp.firebaseio.com/";
-        protected const string BasePathWithoutSlash = "https://firesharp.firebaseio.com";
-        protected const string FirebaseSecret = "fubr9j2Kany9KU3SHCIHBLm142anWCzvlBs1D977";
+        private string _basePath;
+
+        private string _basePathWithoutSlash;
+
+        private string _firebaseSecret;
+
         private IFirebaseClient _client;
 
         [TestFixtureSetUp]
         public async void TestFixtureSetUp()
         {
+            _basePath = ConfigurationManager.AppSettings["FireSharp.Tests.FirebaseUrl"];
+            _firebaseSecret = ConfigurationManager.AppSettings["FireSharp.Tests.FirebaseSecret"];
+
+            if (!_basePath.EndsWith("/"))
+            {
+                _basePath = $"{_basePath}/";
+            }
+
+            var uniqueId = Guid.NewGuid().ToString("N");
+
+            _basePath = $"{_basePath}{uniqueId}/";
+            _basePathWithoutSlash = _basePath.Substring(0, _basePath.Length - 1);
+
             IFirebaseConfig config = new FirebaseConfig
             {
-                AuthSecret = FirebaseSecret,
-                BasePath = BasePath
+                AuthSecret = _firebaseSecret,
+                BasePath = _basePath
             };
             _client = new FirebaseClient(config); //Uses Newtonsoft.Json Json Serializer
+        }
 
+        protected override async void FinalizeTearDown()
+        {
             var task1 = _client.DeleteAsync("todos");
             var task2 = _client.DeleteAsync("fakepath");
 
             await Task.WhenAll(task1, task2);
-        }
-
-        protected override void FinalizeSetUp()
-        {
         }
 
         [Test, Category("INTEGRATION")]
@@ -132,31 +150,32 @@ namespace FireSharp.Tests
         [Test, Category("INTEGRATION")]
         public async void OnChangeGetAsync()
         {
+            var id = Guid.NewGuid().ToString("N");
+
+            var changes = new ConcurrentBag<Todo>();
+
             var expected = new Todo { name = "Execute PUSH4GET1", priority = 2 };
-            var changes = 0;
-            var observer = _client.OnChangeGetAsync<Todo>("fakepath/OnGetAsync/", (events, arg) =>
+            
+            var observer = _client.OnChangeGetAsync<Todo>($"fakepath/{id}/OnGetAsync/", (events, arg) =>
             {
-                Interlocked.Increment(ref changes);
-                Assert.NotNull(arg);
-                Assert.AreEqual(expected.name, arg.name);
+                changes.Add(arg);
             });
 
-            await _client.SetAsync("fakepath/OnGetAsync/", expected);
+            await _client.SetAsync($"fakepath/{id}/OnGetAsync/", expected);
 
             await Task.Delay(2000);
 
-            await _client.SetAsync("fakepath/OnGetAsync/name", "PUSH4GET1");
+            await _client.SetAsync($"fakepath/{id}/OnGetAsync/name", "PUSH4GET1");
 
             await Task.Delay(2000);
 
             try
             {
-                if (changes == 3)
-                {
-                    Assert.Inconclusive();
-                }
+                Assert.AreEqual(2, changes.Count);
 
-                Assert.AreEqual(2, changes);
+                Assert.AreEqual(0, changes.Count(todo => todo == null));
+                Assert.AreEqual(1, changes.Count(todo => todo.name == expected.name));
+                Assert.AreEqual(1, changes.Count(todo => todo.name == "PUSH4GET1"));
             }
             finally
             {
@@ -203,8 +222,8 @@ namespace FireSharp.Tests
             // the same DB, but with a BasePath which does not contain the unnecessary trailing slash.
             var secondClientToTest = new FirebaseClient(new FirebaseConfig
             {
-                AuthSecret = FirebaseSecret,
-                BasePath = BasePathWithoutSlash
+                AuthSecret = _firebaseSecret,
+                BasePath = _basePathWithoutSlash
             });
 
             await _client.PushAsync("todos/get/pushAsync", new Todo

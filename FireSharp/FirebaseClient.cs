@@ -34,7 +34,7 @@ namespace FireSharp
             Dispose(false);
         }
 
-        internal FirebaseClient(IRequestManager requestManager, IFirebaseConfig config)
+        public FirebaseClient(IRequestManager requestManager, IFirebaseConfig config)
         {
             if (requestManager == null)
             {

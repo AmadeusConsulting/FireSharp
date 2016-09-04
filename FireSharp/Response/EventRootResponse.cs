@@ -2,6 +2,7 @@
 using FireSharp.Extensions;
 using FireSharp.Interfaces;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
@@ -16,14 +17,31 @@ namespace FireSharp.Response
     {
         private readonly ValueRootAddedEventHandler<T> _added;
         private readonly string _path;
+
+        private readonly ValueRemovedEventHandler _removed;
+
         private readonly IRequestManager _requestManager;
 
         internal EventRootResponse(HttpResponseMessage httpResponse, ValueRootAddedEventHandler<T> added,
-            IRequestManager requestManager, string path)
+            IRequestManager requestManager, string path, ValueRemovedEventHandler removed = null)
         {
+            if (added == null)
+            {
+                throw new ArgumentNullException(nameof(added));
+            }
+            if (requestManager == null)
+            {
+                throw new ArgumentNullException(nameof(requestManager));
+            }
+            if (string.IsNullOrEmpty(path))
+            {
+                throw new ArgumentNullException(nameof(path));
+            }
+
             _added = added;
             _requestManager = requestManager;
             _path = path;
+            _removed = removed;
 
             CancellationTokenSource = new CancellationTokenSource();
             PollingTask = ReadLoop(httpResponse, CancellationTokenSource.Token);
@@ -59,6 +77,16 @@ namespace FireSharp.Response
                             {
                                 throw new InvalidOperationException(
                                     "Payload data was received but an event did not preceed it.");
+                            }
+
+                            var json = read.Substring("data: ".Length);
+
+                            var data = JsonConvert.DeserializeObject<IDictionary<string, object>>(json);
+
+                            if (data.ContainsKey("data") && data["data"] == null)
+                            {
+                                _removed?.Invoke(this, new ValueRemovedEventArgs(data["path"].ToString()), null);
+                                continue;
                             }
 
                             // Every change on child, will get entire object again.

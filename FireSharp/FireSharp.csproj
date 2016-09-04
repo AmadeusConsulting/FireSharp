@@ -90,8 +90,9 @@
     <Compile Include="Response\SetResponse.cs" />
     <Compile Include="Response\StreamingEventData.cs" />
     <Compile Include="Response\StreamingEventType.cs" />
-    <Compile Include="Security\CustomFirebaseTokenGenerator.cs" />
+    <Compile Include="Security\FirebaseCustomTokenGenerator.cs" />
     <Compile Include="Security\GoogleCloudCredentials.cs" />
+    <Compile Include="Security\IFirebaseCustomTokenGenerator.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\Portable\$(TargetFrameworkVersion)\Microsoft.Portable.CSharp.targets" />
   <Import Project="$(SolutionDir)\.nuget\NuGet.targets" Condition="Exists('$(SolutionDir)\.nuget\NuGet.targets')" />

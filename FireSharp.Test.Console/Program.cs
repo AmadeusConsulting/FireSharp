@@ -1,12 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Configuration;
+using System.IO;
 using System.Threading.Tasks;
 
 using FireSharp.Config;
 using FireSharp.EventStreaming;
 using FireSharp.GeoFire;
 using FireSharp.Interfaces;
+using FireSharp.Security;
 
 using log4net;
 using log4net.Config;
@@ -37,14 +39,31 @@ namespace FireSharp.Test.Console
                                          };
 
             _client = new FirebaseClient(config); //Uses JsonNet default
+            
             //EntityEventStreaming();
             //PersonGenerator();
             //EventStreaming();
             //Crud();
+            //GeoHashing(config);
 
-            GeoHashing(config);
+            GenerateToken(config);
 
             System.Console.Read();
+        }
+
+        private static void GenerateToken(IFirebaseConfig config)
+        {
+            string serviceAccountJson = @"E:\Projects\towcentral\service-account.json";
+
+            var googleCredentials = JsonConvert.DeserializeObject<GoogleCloudCredentials>(File.ReadAllText(serviceAccountJson));
+
+            var generator = new FirebaseCustomTokenGenerator(googleCredentials, config);
+
+            var token = generator.GenerateToken("111", 3600, debug: true);
+
+            System.Console.WriteLine($"Token: \n{token}");
+
+            System.Console.ReadKey();
         }
 
         private async static void GeoHashing(IFirebaseConfig config)

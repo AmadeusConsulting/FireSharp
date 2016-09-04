@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 
 using FireSharp.Extensions;
+using FireSharp.Interfaces;
+using FireSharp.Logging;
 
 using JosePCL;
 using JosePCL.Keys.Rsa;
@@ -11,8 +13,10 @@ using Newtonsoft.Json;
 
 namespace FireSharp.Security
 {
-    public class CustomFirebaseTokenGenerator
+    public class FirebaseCustomTokenGenerator : IFirebaseCustomTokenGenerator
     {
+        private readonly IFirebaseConfig _config;
+
         #region Constants
 
         private const string Audience = "https://identitytoolkit.googleapis.com/google.identity.identitytoolkit.v1.IdentityToolkit";
@@ -25,12 +29,15 @@ namespace FireSharp.Security
 
         private readonly string _serviceAccountPrivateKey;
 
+        private ILog _log;
+
         #endregion
 
         #region Constructors and Destructors
 
-        public CustomFirebaseTokenGenerator(GoogleCloudCredentials googleCloudCredentials)
+        public FirebaseCustomTokenGenerator(GoogleCloudCredentials googleCloudCredentials, IFirebaseConfig config)
         {
+            _config = config;
             if (googleCloudCredentials == null)
             {
                 throw new ArgumentNullException(nameof(googleCloudCredentials));
@@ -46,11 +53,12 @@ namespace FireSharp.Security
                 throw new ArgumentException("PrivateKey property cannot be null or empty", nameof(googleCloudCredentials));
             }
 
+            _log = _config.LogManager.GetLogger(this);
             _serviceAccountEmailAddress = googleCloudCredentials.ClientEmail;
             _serviceAccountPrivateKey = googleCloudCredentials.PrivateKey;
         }
 
-        public CustomFirebaseTokenGenerator(string serviceAccountEmailAddress, string serviceAccountPrivateKey)
+        public FirebaseCustomTokenGenerator(string serviceAccountEmailAddress, string serviceAccountPrivateKey)
         {
             if (serviceAccountEmailAddress == null)
             {
@@ -64,19 +72,20 @@ namespace FireSharp.Security
 
             _serviceAccountEmailAddress = serviceAccountEmailAddress;
             _serviceAccountPrivateKey = serviceAccountPrivateKey;
+            _log = new NoOpLogger();
         }
 
         #endregion
 
         #region Public Methods and Operators
 
-        public string GenerateToken(string userIdentifier, int tokenTimeToLiveSeconds = 60, IEnumerable<KeyValuePair<string, object>> claims = null)
+        public string GenerateToken(string userIdentifier, int tokenTimeToLiveSeconds = 60, IEnumerable<KeyValuePair<string, object>> claims = null, bool debug = false)
         {
             var issuedTime = DateTimeOffset.UtcNow;
 
+
             var payload = new Dictionary<string, object>
                               {
-                                  { "alg", JwsAlgorithms.RS256 }, 
                                   { "iss", _serviceAccountEmailAddress }, 
                                   { "sub", _serviceAccountEmailAddress }, 
                                   { "aud", Audience }, 
@@ -90,9 +99,16 @@ namespace FireSharp.Security
                 payload["claims"] = claims.ToList();
             }
 
+            if (debug)
+            {
+                payload["debug"] = true;
+            }
+            
             var privateKey = PrivateKey.Load(_serviceAccountPrivateKey);
 
             var payloadString = JsonConvert.SerializeObject(payload);
+
+            _log.Debug($"Generating Firebase Token with the following payload:\n{payloadString}");
 
             return Jwt.Encode(payloadString, JwsAlgorithms.RS256, privateKey);
         }

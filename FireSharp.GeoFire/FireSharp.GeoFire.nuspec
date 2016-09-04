@@ -1,11 +1,11 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
   <metadata>
-    <id>Amadeus-FireSharp</id>
+    <id>Amadeus-FireSharp.GeoFire</id>
     <version>$version$</version>
-    <title>Fire#</title>
-    <authors>ziyasal, Amadeus Consulting</authors>
-    <owners>ziyasal</owners>
+    <title>Fire# GeoFire</title>
+    <authors>Amadeus Consulting</authors>
+    <owners>Amadeus Consulting</owners>
     <licenseUrl>https://github.com/AmadeusConsulting/FireSharp/blob/master/LICENSE.md</licenseUrl>
     <projectUrl>https://github.com/AmadeusConsulting/FireSharp</projectUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
@@ -14,15 +14,11 @@
     <tags>firebase rest api client realtime</tags>
     <dependencies>
       <dependency id="Newtonsoft.Json" version="6.0.8" />
-      <dependency id="Microsoft.Net.Http" version="2.2.29" />
-      <dependency id="C5" version="2.4.5947.17249" />
-      <dependency id="Provision" version="3.0.3" />
-      <dependency id="Provision.Providers.PortableMemoryCache" version="3.0.1" />
-      <dependency id="jose-pcl" version="0.0.4" />
+      <dependency id="Amadeus-FireSharp" version="$version$" />
     </dependencies>
   </metadata>
   <files>
-    <file src="bin\Release\FireSharp.*" target="lib\portable-net45+sl5+wp8+win8" />
+    <file src="bin\Release\FireSharp.GeoFire*" target="lib\portable-net45+sl5+wp8+win8" />
     <file src="**\*.cs" target="src" />
   </files>
 </package>

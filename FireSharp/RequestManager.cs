@@ -10,15 +10,15 @@ using FireSharp.Logging;
 
 namespace FireSharp
 {
-    internal class RequestManager : IRequestManager
+    public class RequestManager : IRequestManager
     {
-        internal static readonly HttpMethod Patch = new HttpMethod("PATCH");
+        public static readonly HttpMethod Patch = new HttpMethod("PATCH");
 
         private readonly ILog _log;
 
         private readonly IFirebaseConfig _config;
 
-        internal RequestManager(IFirebaseConfig config)
+        public RequestManager(IFirebaseConfig config)
         {
             _config = config;
             _log = _config.LogManager.GetLogger<RequestManager>();
