@@ -37,6 +37,7 @@
   <include buildfile="${buildfile.includes.dir}\MSBuild.include" />
 
   <property name="nuget.package.projects" value="FireSharp,FireSharp.GeoFire" />
+  <property name="nuget.feed.list" value="default" />
 
   <!-- The include below is required to ensure nuget packages are restored before building --> 
   <include buildfile="${buildfile.includes.dir}\nuget.include" />
@@ -98,23 +99,23 @@
 
 
   <target name="update-integration-test-config">
-      <if test="${nunit.project == 'FireSharp.Tests'}">
+    <if test="${nunit.project == 'FireSharp.Tests'}">
 
-          <if test="${environment::variable-exists('FIRESHARP_DATABASE_URL') and environment::variable-exists('FIRESHARP_DATABASE_SECRET')}">
-              <property name="config.filepath" value="${nunit.project.deploy.path}\${nunit.project.output.filename}${nunit.project.output.fileext}.config" />
+      <if test="${environment::variable-exists('FIRESHARP_DATABASE_URL') and environment::variable-exists('FIRESHARP_DATABASE_SECRET')}">
+        <property name="config.filepath" value="${nunit.project.deploy.path}\${nunit.project.output.filename}${nunit.project.output.fileext}.config" />
 
-              <property name="appsetting.key" value="FireSharp.Tests.FirebaseUrl" />
-              <property name="appsetting.value" value="${environment::get-variable('FIRESHARP_DATABASE_URL')}" />
+        <property name="appsetting.key" value="FireSharp.Tests.FirebaseUrl" />
+        <property name="appsetting.value" value="${environment::get-variable('FIRESHARP_DATABASE_URL')}" />
 
-              <call target="update-appsetting" />
+        <call target="update-appsetting" />
 
-              <property name="appsetting.key" value="FireSharp.Tests.FirebaseSecret" />
-              <property name="appsetting.value" value="${environment::get-variable('FIRESHARP_DATABASE_SECRET')}" />
+        <property name="appsetting.key" value="FireSharp.Tests.FirebaseSecret" />
+        <property name="appsetting.value" value="${environment::get-variable('FIRESHARP_DATABASE_SECRET')}" />
 
-              <call target="update-appsetting" />
-          </if>
-          
+        <call target="update-appsetting" />
       </if>
+          
+    </if>
   </target>
   
 </project>
