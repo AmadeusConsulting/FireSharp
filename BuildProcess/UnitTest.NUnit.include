@@ -1,107 +1,129 @@
 <?xml version="1.0"?>
+
 <project name="NUnit block" xmlns="http://nant.sf.net/release/0.92/nant.xsd">
-	<!-- 
+    <!-- 
 		Required Properties
 		
 		clientName			- Name of the client that this project is for.
 		unitTestProjectNames	- Comma delimited list of unit test project names.
 	-->
 
-	<!-- Event Wire-up -->
-	<property name="event" value="test" />
-	<property name="subscriber" value="nunit-run-tests" />
-	<call target="subscribe" />
+    <!-- Event Wire-up -->
+    <property name="event" value="test" />
+    <property name="subscriber" value="nunit-run-tests" />
+    <call target="subscribe" />
 
-  
-  <property name="event" value="deployArtifacts" />
-  <property name="subscriber" value="nunit-deploy-artifacts" />
 
-  <target name="nunit-set-project-source-property">
-    <property name="nunit.project.source.location" value="${sourceLocation}\${nunit.project}" />
-  </target>  
-  
-	<!-- Event Handlers -->
-	<target name="nunit-run-tests">
+    <property name="event" value="deployArtifacts" />
+    <property name="subscriber" value="nunit-deploy-artifacts" />
 
-		<echo message="Missing 'unitTestProjectNames' property.  NO UNIT TESTS WILL BE RUN!!!!!!!!!!" level="Warning" if="${not(property::exists('unitTestProjectNames'))}" />
+    <target name="nunit-set-project-source-property">
+        <property name="nunit.project.source.location" value="${sourceLocation}\${nunit.project}" />
+    </target>
 
-		<if test="${property::exists('unitTestProjectNames')}">
-			<foreach item="String" in="${unitTestProjectNames}" delim="," trim="Both" property="nunit.project">
-				<do>
-					<call target="nunit-set-project-source-property" />
-          
-          				<!-- First push test libraries to the defined location -->
+    <!-- Event Handlers -->
+    <target name="nunit-run-tests">
 
-          				<property name="nunit.deployment.name" value="${clientName}" />
-          
-          				<if test="${property::exists('env.BuildJobName')}">
-            					<property name="nunit.deployment.name" value="${env.BuildJobName}" />
-          				</if>
-          
-					<property name="unitTestDeploymentLocation" value="${env.UnitTestBaseDeploymentLocation}\${nunit.deployment.name}\${nunit.project}" />
-					<property name="unitTestProjectFileNamespace" value="http://schemas.microsoft.com/developer/msbuild/2003" unless="${property::exists('unitTestProjectFileNamespace')}" />
+        <echo message="Missing 'unitTestProjectNames' property.  NO UNIT TESTS WILL BE RUN!!!!!!!!!!" level="Warning"
+              if="${not(property::exists('unitTestProjectNames'))}" />
 
-					<mkdir dir="${unitTestDeploymentLocation}"/>
+        <if test="${property::exists('unitTestProjectNames')}">
+            <foreach item="String" in="${unitTestProjectNames}" delim="," trim="Both" property="nunit.project">
+                <do>
+                    <call target="nunit-set-project-source-property" />
 
-          <delete>
-            <fileset basedir="${unitTestDeploymentLocation}">
-              <include name="**/*" />
-            </fileset>
-          </delete>
+                    <!-- First push test libraries to the defined location -->
 
-					<copy todir="${unitTestDeploymentLocation}">
-						<fileset basedir="${nunit.project.source.location}\bin\Release">
-							<include name="**/*" />
-						</fileset>
-					</copy>
+                    <property name="nunit.deployment.name" value="${clientName}" />
 
-					<xmlpeek
-						file="${nunit.project.source.location}\${nunit.project}.csproj"
-						xpath="/x:Project/x:PropertyGroup/x:AssemblyName"
-						property="unitTestAssemblyName">
-						<namespaces>
-							<namespace prefix="x" uri="${unitTestProjectFileNamespace}" />
-						</namespaces>
-					</xmlpeek>
+                    <if test="${property::exists('env.BuildJobName')}">
+                        <property name="nunit.deployment.name" value="${env.BuildJobName}" />
+                    </if>
 
-					<property name="event" value="before-run-nunit-test" />
-					<call target="raiseEvent" />
+                    <property name="nunit.project.deploy.path"
+                              value="${env.UnitTestBaseDeploymentLocation}\${nunit.deployment.name}\${nunit.project}" />
+                    <property name="unitTestProjectFileNamespace"
+                              value="http://schemas.microsoft.com/developer/msbuild/2003"
+                              unless="${property::exists('unitTestProjectFileNamespace')}" />
 
-					<property name="nunit.unittest.binaryfile.extension" value=".dll" />
+                    <mkdir dir="${nunit.project.deploy.path}" />
 
-					<if test="${property::exists(nunit.project + '.binaryfile.extension')}">
-						<property name="nunit.unittest.binaryfile.extension" value="${property::get-value(nunit.project + '.binaryfile.extension')}" />
-					</if>
+                    <delete>
+                        <fileset basedir="${nunit.project.deploy.path}">
+                            <include name="**/*" />
+                        </fileset>
+                    </delete>
 
-          				<property name="nunit.project.console.runner.flags" value="/xml=&quot;${nunit.project.source.location}\${nunit.project}.nunit-results.xml&quot;"/>
+                    <copy todir="${nunit.project.deploy.path}">
+                        <fileset basedir="${nunit.project.source.location}\bin\Release">
+                            <include name="**/*" />
+                        </fileset>
+                    </copy>
 
-			          	<!-- Allow for hooking into the nunit flags passed to the console runner -->
-			          	<property name="event" value="nunit.project.console.needsflags" />
-			          	<call target="raiseEvent"/>
-          
-					<!-- Then run the tests -->
-					<exec
-					  program="${env.NUnitConsoleLocation}"
-					  commandline="&quot;${unitTestDeploymentLocation}\${unitTestAssemblyName}${nunit.unittest.binaryfile.extension}&quot; ${nunit.project.console.runner.flags}" />
-				</do>
-			</foreach>
-		</if>
-	</target>
+                    <xmlpeek
+                        file="${nunit.project.source.location}\${nunit.project}.csproj"
+                        xpath="/x:Project/x:PropertyGroup/x:AssemblyName"
+                        property="nunit.project.output.filename">
+                        <namespaces>
+                            <namespace prefix="x" uri="${unitTestProjectFileNamespace}" />
+                        </namespaces>
+                    </xmlpeek>
 
-  	<target name="nunit-deploy-artifacts">
-    		<if test="${property::exists('unitTestProjectNames')}">
-	      		<foreach item="String" in="${unitTestProjectNames}" delim="," trim="Both" property="nunit.project">
-	        		<do>
-	          			<call target="nunit-set-project-source-property" />
-          
-	          			<!--Copy test project files to artifact location-->
-	          			<copy todir="${artifactLocation}\${nunit.project}">
-	            				<fileset basedir="${nunit.project.source.location}\bin\Release">
-	              					<include name="**/*" />
-	            				</fileset>
-	          			</copy>
-	        		</do>
-	      		</foreach>
-    	  	</if>
-	</target>
+                    <xmlpeek
+                        file="${nunit.project.source.location}\${nunit.project}.csproj"
+                        xpath="/x:Project/x:PropertyGroup/x:OutputType"
+                        property="nunit.project.outputtype">
+                        <namespaces>
+                            <namespace prefix="x" uri="${unitTestProjectFileNamespace}" />
+                        </namespaces>
+                    </xmlpeek>
+
+                    <echo message="[NUnit] NUnit Project ${nunit.project} has output type = ${nunit.project.outputtype}"/>
+
+                    <choose>
+                        <when test="${nunit.project.outputtype == 'Exe'}">
+                            <echo message="[NUnit] Detected NUnit Project ${nunit.project} as a ConsoleApp ... using .exe file extension" />
+                            <property name="nunit.project.output.fileext" value=".exe" />
+                        </when>
+                        <otherwise>
+                            <echo message="[NUnit] Assuming .dll file extension for NUnit Project ${nunit.project}" />
+                            <property name="nunit.project.output.fileext" value=".dll" />
+                        </otherwise>
+                    </choose>
+                    
+                    <property name="event" value="before-run-nunit-test" />
+                    <call target="raiseEvent" />
+
+                    <property name="nunit.project.console.runner.flags"
+                              value="/xml=&quot;${nunit.project.source.location}\${nunit.project}.nunit-results.xml&quot;" />
+
+                    <!-- Allow for hooking into the nunit flags passed to the console runner -->
+                    <property name="event" value="nunit.project.console.needsflags" />
+                    <call target="raiseEvent" />
+
+                    <!-- Then run the tests -->
+                    <exec
+                        program="${env.NUnitConsoleLocation}"
+                        commandline="&quot;${nunit.project.deploy.path}\${nunit.project.output.filename}${nunit.project.output.fileext}&quot; ${nunit.project.console.runner.flags}" />
+                </do>
+            </foreach>
+        </if>
+    </target>
+
+    <target name="nunit-deploy-artifacts">
+        <if test="${property::exists('unitTestProjectNames')}">
+            <foreach item="String" in="${unitTestProjectNames}" delim="," trim="Both" property="nunit.project">
+                <do>
+                    <call target="nunit-set-project-source-property" />
+
+                    <!--Copy test project files to artifact location-->
+                    <copy todir="${artifactLocation}\${nunit.project}">
+                        <fileset basedir="${nunit.project.source.location}\bin\Release">
+                            <include name="**/*" />
+                        </fileset>
+                    </copy>
+                </do>
+            </foreach>
+        </if>
+    </target>
 </project>
