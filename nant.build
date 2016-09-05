@@ -38,6 +38,8 @@
 
   <property name="nuget.package.projects" value="FireSharp,FireSharp.GeoFire" />
   <property name="nuget.feed.list" value="default" />
+  <property name="FireSharp.nuget.packagename" value="Amadeus-Firesharp" />
+  <property name="FireSharp.GeoFire.nuget.packagename" value="Amadeus-FireSharp.GeoFire" />
 
   <!-- The include below is required to ensure nuget packages are restored before building --> 
   <include buildfile="${buildfile.includes.dir}\nuget.include" />

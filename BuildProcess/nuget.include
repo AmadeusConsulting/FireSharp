@@ -92,6 +92,13 @@
 							<!-- Feeds are dynamic and setup in the enviroment we expect a URL and api key registered in enviroment to deploy to a feed -->
 							<property name="nuget.feed.url.environment" value="${'NUGET_FEED_URL_' + string::to-upper(nuget.feed.name)}"/>
 							<property name="nuget.feed.apikey.environment" value="${'NUGET_FEED_API_KEY_' + string::to-upper(nuget.feed.name)}"/>
+
+              <property name="nuget.project.packagename" value="${nuget.projectName}"/>
+              <property name="nuget.project.packagename.property" value="${nuget.projectName}.nuget.packagename"/>
+
+              <if test="${property::exists(nuget.projectName + '.nuget.packagename')}">
+                <property name="nuget.project.packagename" value="${property::get-value(nuget.projectName + '.nuget.packagename')}"/>
+              </if>
 							
 							<echo message="Checking for ${nuget.feed.url.environment} Property in enviroment"/>
 							<choose>
@@ -104,21 +111,21 @@
 											<property name="env.nuget.feed.apikey" value="${environment::get-variable(nuget.feed.apikey.environment)}" />
 											<!-- Ensure that the nupkg exists -->
 												<choose>
-													<when test="${file::exists(artifactLocation + '\' + nuget.projectName + '.' + property::get-value(nuget.project.packageversion.propertyname) + '.nupkg')}">
-														<echo message="Deploying ${nuget.projectName + '.' + property::get-value(nuget.project.packageversion.propertyname) + '.nupkg'} to ${env.nuget.feed.url}"/>
+													<when test="${file::exists(artifactLocation + '\' + nuget.project.packagename + '.' + property::get-value(nuget.project.packageversion.propertyname) + '.nupkg')}">
+														<echo message="Deploying ${nuget.project.packagename + '.' + property::get-value(nuget.project.packageversion.propertyname) + '.nupkg'} to ${env.nuget.feed.url}"/>
 														<!-- Deploy the nupkg from the artifacts directory -->
 														<exec workingdir="${nuget.sourceLocation}\${nuget.projectName}"
 																   verbose="true"
 																	program="${env.NugetPath}">
 															<arg value="push" />
-															<arg file="${artifactLocation + '\' + nuget.projectName + '.' + property::get-value(nuget.project.packageversion.propertyname) + '.nupkg'}" />
+															<arg file="${path::combine(artifactLocation, nuget.project.packagename + '.' + property::get-value(nuget.project.packageversion.propertyname) + '.nupkg')}" />
 															<arg line="/Verbosity detailed" />
 															<arg line="/apikey ${env.nuget.feed.apikey}" />
 															<arg line="/Source ${env.nuget.feed.url}" />
 														</exec>
 													</when>				
 													<otherwise>
-														<echo message="[Nuget Deploy] Could not find nupkg ${artifactLocation + '\' + nuget.projectName + '.' + property::get-value(nuget.project.packageversion.propertyname) + '.nupkg'} That was supposed to be deployed Skipping it!" />
+														<echo message="[Nuget Deploy] Could not find nupkg ${path::combine(artifactLocation, + nuget.project.packagename + '.' + property::get-value(nuget.project.packageversion.propertyname) + '.nupkg')} That was supposed to be deployed Skipping it!" />
 													</otherwise>
 												</choose>
 										</when>						
