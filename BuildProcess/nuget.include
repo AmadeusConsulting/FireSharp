@@ -36,7 +36,7 @@
 		<property name="event" value="before-nuget-package" />
 		<call target="raiseEvent" />
 		
-		<property name="nuspec.package.version" value="${BuildLabel}" unless="${property::exists('nuspec.package.version')}" />
+		<property name="nuspec.package.version" value="${parsedversion}" unless="${property::exists('nuspec.package.version')}" />
 		
 		<foreach item="String" property="nuget.projectName" in="${nuget.package.projects}" delim="," trim="Both">
 			<do>
@@ -77,7 +77,7 @@
 					<arg value="pack" />
 					<arg file="${nuget.sourceLocation}\${nuget.projectName}\${nuget.projectName}.nuspec" />
 					<arg line="/Verbosity detailed" />
-          <arg line="/Version ${parsedversion}" />
+          <arg line="/Version ${property::get-value(nuget.project.packageversion.propertyname)}" />
 					<arg value="/OutputDirectory" />
 					<arg file="${artifactLocation}" /> 
 					<environment>
