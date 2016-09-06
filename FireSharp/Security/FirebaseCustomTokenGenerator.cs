@@ -79,7 +79,7 @@ namespace FireSharp.Security
 
         #region Public Methods and Operators
 
-        public string GenerateToken(string userIdentifier, int tokenTimeToLiveSeconds = 60, IEnumerable<KeyValuePair<string, object>> claims = null, bool debug = false)
+        public string GenerateToken(string userIdentifier, int tokenTimeToLiveSeconds = 60, IDictionary<string, object> claims = null, bool debug = false)
         {
             var issuedTime = DateTimeOffset.UtcNow;
 
@@ -94,13 +94,17 @@ namespace FireSharp.Security
                                   { "uid", userIdentifier }
                               };
 
-            if (claims != null)
+            if (claims != null && claims.Any())
             {
-                payload["claims"] = claims.ToList();
+                payload["claims"] = claims;
             }
 
             if (debug)
             {
+                if (!payload.ContainsKey("claims") || payload["claims"] == null)
+                {
+                    payload["claims"] = new Dictionary<string,object>();
+                }
                 payload["debug"] = true;
             }
             

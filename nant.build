@@ -115,6 +115,17 @@
         <property name="appsetting.value" value="${environment::get-variable('FIREBASE_DATABASE_SECRET')}" />
 
         <call target="update-appsetting" />
+
+        <property name="appsetting.key" value="FireSharp.Tests.GoogleApiKey" />
+        <property name="appsetting.value" value="${environment::get-variable('FIREBASE_GOOGLE_API_KEY')}" />
+
+        <call target="update-appsetting" />
+
+        <property name="appsetting.key" value="FireSharp.Tests.GoogleServiceAccount.JsonFilePath" />
+        <property name="appsetting.value" value="${environment::get-variable('FIREBASE_SERVICE_ACCT_JSON_PATH')}" />
+
+        <call target="update-appsetting" />
+        
       </if>
           
     </if>

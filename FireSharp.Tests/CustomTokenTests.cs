@@ -1,16 +1,23 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 
 using Common.Testing.NUnit;
 
+using FireSharp.Config;
 using FireSharp.Security;
 
 using JosePCL;
 
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 using NUnit.Framework;
 
@@ -85,10 +92,156 @@ nml6IxDNUFXUW4HUavLt/E3LRJgnUcACODlybIoQqlrPh/iuao89wfki7vk+6Dhn
         }
 
         [Test]
-        public void GenerateValidToken()
+        public async void GenerateValidToken()
         {
-            // TODO: write custom token validator test that POSTs to:
-            // https://www.googleapis.com/identitytoolkit/v3/relyingparty/verifyCustomToken?key=<API_KEY>
+            var googleCredentialsJson = File.ReadAllText(ConfigurationManager.AppSettings["FireSharp.Tests.GoogleServiceAccount.JsonFilePath"]);
+            var googleApiKey = ConfigurationManager.AppSettings["FireSharp.Tests.GoogleApiKey"];
+
+            var googleCredentials = JsonConvert.DeserializeObject<GoogleCloudCredentials>(googleCredentialsJson);
+            var tokenGenerator = new FirebaseCustomTokenGenerator(googleCredentials, new FirebaseConfig());
+
+            var token = tokenGenerator.GenerateToken("1234", debug: true);
+
+            Debug.WriteLine("Token NO Claims:");
+            Debug.WriteLine(token);
+
+            var client = new HttpClient();
+
+            var requestJson = new JObject
+                                  {
+                                      ["returnSecureToken"] = new JValue(true),
+                                      ["token"] = new JValue(token)
+                                  };
+
+            var requestContent = new StringContent(JsonConvert.SerializeObject(requestJson), Encoding.UTF8, "application/json");
+
+            var request = new HttpRequestMessage(
+                HttpMethod.Post,
+                $"https://www.googleapis.com/identitytoolkit/v3/relyingparty/verifyCustomToken?key={googleApiKey}")
+                              {
+                                  Content = requestContent,
+                                  Headers =
+                                      {
+                                          { "Accept", "application/json" }
+                                      }
+                              };
+
+            var response = await client.SendAsync(request);
+
+            Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
+
+            var responseBodyJson = await response.Content.ReadAsStringAsync();
+
+            var responseValues = JsonConvert.DeserializeObject<Dictionary<string, string>>(responseBodyJson);
+
+            Assert.IsTrue(responseValues.ContainsKey("idToken"));
+            Assert.IsNotNullOrEmpty(responseValues["idToken"]);
+
+            Assert.AreEqual("identitytoolkit#VerifyCustomTokenResponse", responseValues["kind"]);
+        }
+
+        [Test]
+        public async void GenerateValidTokenWithCustomClaims()
+        {
+            var googleCredentialsJson = File.ReadAllText(ConfigurationManager.AppSettings["FireSharp.Tests.GoogleServiceAccount.JsonFilePath"]);
+            var googleApiKey = ConfigurationManager.AppSettings["FireSharp.Tests.GoogleApiKey"];
+
+            var googleCredentials = JsonConvert.DeserializeObject<GoogleCloudCredentials>(googleCredentialsJson);
+            var tokenGenerator = new FirebaseCustomTokenGenerator(googleCredentials, new FirebaseConfig());
+
+            var token = tokenGenerator.GenerateToken(
+                "1234",
+                debug: true,
+                claims: new Dictionary<string, object>
+                            {
+                                ["tester"] = "yes"
+                            });
+
+            Debug.WriteLine("Token Custom Claims:");
+            Debug.WriteLine(token);
+
+            var client = new HttpClient();
+
+            var requestJson = new JObject
+            {
+                ["returnSecureToken"] = new JValue(true),
+                ["token"] = new JValue(token)
+            };
+
+            var requestContent = new StringContent(JsonConvert.SerializeObject(requestJson), Encoding.UTF8, "application/json");
+
+            var request = new HttpRequestMessage(
+                HttpMethod.Post,
+                $"https://www.googleapis.com/identitytoolkit/v3/relyingparty/verifyCustomToken?key={googleApiKey}")
+            {
+                Content = requestContent,
+                Headers =
+                                      {
+                                          { "Accept", "application/json" }
+                                      }
+            };
+
+            var response = await client.SendAsync(request);
+
+            Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
+
+            var responseBodyJson = await response.Content.ReadAsStringAsync();
+
+            var responseValues = JsonConvert.DeserializeObject<Dictionary<string, string>>(responseBodyJson);
+
+            Assert.IsTrue(responseValues.ContainsKey("idToken"));
+            Assert.IsNotNullOrEmpty(responseValues["idToken"]);
+
+            Assert.AreEqual("identitytoolkit#VerifyCustomTokenResponse", responseValues["kind"]);
+        }
+
+        [Test]
+        public async void CreateValidTokenWithEmptyClaims()
+        {
+            var googleCredentialsJson = File.ReadAllText(ConfigurationManager.AppSettings["FireSharp.Tests.GoogleServiceAccount.JsonFilePath"]);
+            var googleApiKey = ConfigurationManager.AppSettings["FireSharp.Tests.GoogleApiKey"];
+
+            var googleCredentials = JsonConvert.DeserializeObject<GoogleCloudCredentials>(googleCredentialsJson);
+            var tokenGenerator = new FirebaseCustomTokenGenerator(googleCredentials, new FirebaseConfig());
+
+            var token = tokenGenerator.GenerateToken("1234", debug: true, claims: new Dictionary<string, object>());
+
+            Debug.WriteLine("Token Empty Claims:");
+            Debug.WriteLine(token);
+
+            var client = new HttpClient();
+
+            var requestJson = new JObject
+            {
+                ["returnSecureToken"] = new JValue(true),
+                ["token"] = new JValue(token)
+            };
+
+            var requestContent = new StringContent(JsonConvert.SerializeObject(requestJson), Encoding.UTF8, "application/json");
+
+            var request = new HttpRequestMessage(
+                HttpMethod.Post,
+                $"https://www.googleapis.com/identitytoolkit/v3/relyingparty/verifyCustomToken?key={googleApiKey}")
+            {
+                Content = requestContent,
+                Headers =
+                                      {
+                                          { "Accept", "application/json" }
+                                      }
+            };
+
+            var response = await client.SendAsync(request);
+
+            Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
+
+            var responseBodyJson = await response.Content.ReadAsStringAsync();
+
+            var responseValues = JsonConvert.DeserializeObject<Dictionary<string, string>>(responseBodyJson);
+
+            Assert.IsTrue(responseValues.ContainsKey("idToken"));
+            Assert.IsNotNullOrEmpty(responseValues["idToken"]);
+
+            Assert.AreEqual("identitytoolkit#VerifyCustomTokenResponse", responseValues["kind"]);
         }
     }
 }
