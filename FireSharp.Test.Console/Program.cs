@@ -2,11 +2,9 @@
 using System.Collections.Generic;
 using System.Configuration;
 using System.IO;
-using System.Threading.Tasks;
 
 using FireSharp.Config;
 using FireSharp.EventStreaming;
-using FireSharp.GeoFire;
 using FireSharp.Interfaces;
 using FireSharp.Security;
 
@@ -14,8 +12,6 @@ using log4net;
 using log4net.Config;
 
 using Newtonsoft.Json;
-
-using Formatting = System.Xml.Formatting;
 
 namespace FireSharp.Test.Console
 {
@@ -44,7 +40,6 @@ namespace FireSharp.Test.Console
             //PersonGenerator();
             //EventStreaming();
             //Crud();
-            //GeoHashing(config);
 
             GenerateToken(config);
 
@@ -65,66 +60,7 @@ namespace FireSharp.Test.Console
 
             System.Console.ReadKey();
         }
-
-        private async static void GeoHashing(IFirebaseConfig config)
-        {
-            var svc = new GeoHashingService(_client, "/points-of-interest", config);
-
-            var locations = new[]
-                                {
-                                    new[] { 40.702665, -74.016370 }, // battery park
-                                    new[] { 40.689217, -74.044500 }, // statue of liberty
-                                    new[] { 39.949590, -75.150270 }, // liberty bell
-                                    new[] { 40.758824, -73.985123 }, // times square
-                                    new[] { 40.748350, -73.985490 } // empire state building
-                                };
-
-            for (int i = 0; i < 5; i++)
-            {
-                var key = new[] { "Battery Park", "Statue of Liberty", "Liberty Bell", "Times Square", "Empire State Building" }[i];
-                System.Console.WriteLine($"Setting Location {key}");
-                await svc.SetLocation(key, locations[i][0], locations[i][1]);
-            }
-
-            System.Console.WriteLine();
-            System.Console.WriteLine();
-
-            var centerPoint = new GeographyPoint
-                                  {
-                                      // 1 new york plaza
-                                      Latitude = 40.702079,
-                                      Longitude = -74.011909
-                                  };
-
-            await PrintLocations(svc, centerPoint, 5.0);
-
-            System.Console.WriteLine("\n--------------\n");
-
-            await PrintLocations(svc, centerPoint, 10.0);
-
-            System.Console.WriteLine("\n--------------\n");
-
-            await PrintLocations(svc, centerPoint, 200.0);
-
-            //System.Console.WriteLine("\n--------------\n");
-
-            //await PrintLocations(svc, centerPoint, 400.0);
-        }
-
-        private static async Task PrintLocations(GeoHashingService svc, GeographyPoint centerPoint, double distKm)
-        {
-            System.Console.WriteLine($"Finding Locations within {distKm} km of {centerPoint.Latitude}, {centerPoint.Longitude} ...");
-
-            var found = await svc.FindLocations(centerPoint, distKm);
-
-            foreach (var key in found.Keys)
-            {
-                var location = found[key];
-                System.Console.WriteLine(
-                    $"{key} found! - hash: {location.GeoHash} Latitude: {location.Location.Latitude} Longitude: {location.Location.Longitude} Distance From Center: {location.DistanceToCenterKm} km");
-            }
-        }
-
+        
         private static async void PersonGenerator()
         {
             var destinations = new[] { "The Mall", "Home", "School", "Work", "Grocery Store" };

@@ -1,57 +1,23 @@
 ﻿using Common.Testing.NUnit;
 using FireSharp.Config;
 using FireSharp.Exceptions;
-using FireSharp.Interfaces;
 using FireSharp.Tests.Models;
 using NUnit.Framework;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Configuration;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace FireSharp.Tests
 {
-    public class FiresharpTests : TestBase
+    public class FiresharpTests : FiresharpTestsBase
     {
-        private string _basePath;
-
-        private string _basePathWithoutSlash;
-
-        private string _firebaseSecret;
-
-        private IFirebaseClient _client;
-
-        [TestFixtureSetUp]
-        public async void TestFixtureSetUp()
-        {
-            _basePath = ConfigurationManager.AppSettings["FireSharp.Tests.FirebaseUrl"];
-            _firebaseSecret = ConfigurationManager.AppSettings["FireSharp.Tests.FirebaseSecret"];
-
-            if (!_basePath.EndsWith("/"))
-            {
-                _basePath = $"{_basePath}/";
-            }
-
-            var uniqueId = Guid.NewGuid().ToString("N");
-
-            _basePath = $"{_basePath}{uniqueId}/";
-            _basePathWithoutSlash = _basePath.Substring(0, _basePath.Length - 1);
-
-            IFirebaseConfig config = new FirebaseConfig
-            {
-                AuthSecret = _firebaseSecret,
-                BasePath = _basePath
-            };
-            _client = new FirebaseClient(config); //Uses Newtonsoft.Json Json Serializer
-        }
-
         protected override async void FinalizeTearDown()
         {
-            var task1 = _client.DeleteAsync("todos");
-            var task2 = _client.DeleteAsync("fakepath");
+            var task1 = FirebaseClient.DeleteAsync("todos");
+            var task2 = FirebaseClient.DeleteAsync("fakepath");
 
             await Task.WhenAll(task1, task2);
         }
@@ -59,33 +25,33 @@ namespace FireSharp.Tests
         [Test, Category("INTEGRATION")]
         public void Delete()
         {
-            _client.Push("todos/push", new Todo
+            FirebaseClient.Push("todos/push", new Todo
             {
                 name = "Execute PUSH4GET",
                 priority = 2
             });
 
-            var response = _client.Delete("todos/push");
+            var response = FirebaseClient.Delete("todos/push");
             Assert.NotNull(response);
         }
 
         [Test, Category("INTEGRATION"), Category("ASYNC")]
         public async Task DeleteAsync()
         {
-            await _client.PushAsync("todos/pushAsync", new Todo
+            await FirebaseClient.PushAsync("todos/pushAsync", new Todo
             {
                 name = "Execute PUSH4GET",
                 priority = 2
             });
 
-            var response = await _client.DeleteAsync("todos/pushAsync");
+            var response = await FirebaseClient.DeleteAsync("todos/pushAsync");
             Assert.NotNull(response);
         }
 
         [Test, Category("INTEGRATION"), Category("SYNC")]
         public void Get()
         {
-            _client.Push("todos/gettest/push", new Todo
+            FirebaseClient.Push("todos/gettest/push", new Todo
             {
                 name = "Execute PUSH4GET",
                 priority = 2
@@ -93,7 +59,7 @@ namespace FireSharp.Tests
 
             Thread.Sleep(400);
 
-            var response = _client.Get("todos/gettest");
+            var response = FirebaseClient.Get("todos/gettest");
             Assert.NotNull(response);
             Assert.IsTrue(response.Body.Contains("name"));
             Assert.IsTrue(response.Body.Contains("Execute PUSH4GET"));
@@ -102,7 +68,7 @@ namespace FireSharp.Tests
         [Test, Category("INTEGRATION"), Category("ASYNC")]
         public async void GetAsync()
         {
-            await _client.PushAsync("todos/get/pushAsync", new Todo
+            await FirebaseClient.PushAsync("todos/get/pushAsync", new Todo
             {
                 name = "Execute PUSH4GET",
                 priority = 2
@@ -110,7 +76,7 @@ namespace FireSharp.Tests
 
             Thread.Sleep(400);
 
-            var response = await _client.GetAsync("todos/get/");
+            var response = await FirebaseClient.GetAsync("todos/get/");
             Assert.NotNull(response);
             Assert.IsTrue(response.Body.Contains("name"));
         }
@@ -127,7 +93,7 @@ namespace FireSharp.Tests
                 new Todo {name = "Execute PUSH4GET5", priority = 2}
             };
 
-            var pushResponse = await _client.PushAsync("todos/list/pushAsync", expected);
+            var pushResponse = await FirebaseClient.PushAsync("todos/list/pushAsync", expected);
             var id = pushResponse.Result.Name;
 
 
@@ -137,7 +103,7 @@ namespace FireSharp.Tests
 
             Thread.Sleep(400);
 
-            var getResponse = await _client.GetAsync(string.Format("todos/list/pushAsync/{0}", id));
+            var getResponse = await FirebaseClient.GetAsync(string.Format("todos/list/pushAsync/{0}", id));
 
             var actual = getResponse.ResultAs<List<Todo>>();
 
@@ -156,16 +122,16 @@ namespace FireSharp.Tests
 
             var expected = new Todo { name = "Execute PUSH4GET1", priority = 2 };
             
-            var observer = _client.OnChangeGetAsync<Todo>($"fakepath/{id}/OnGetAsync/", (events, arg) =>
+            var observer = FirebaseClient.OnChangeGetAsync<Todo>($"fakepath/{id}/OnGetAsync/", (events, arg) =>
             {
                 changes.Add(arg);
             });
 
-            await _client.SetAsync($"fakepath/{id}/OnGetAsync/", expected);
+            await FirebaseClient.SetAsync($"fakepath/{id}/OnGetAsync/", expected);
 
             await Task.Delay(2000);
 
-            await _client.SetAsync($"fakepath/{id}/OnGetAsync/name", "PUSH4GET1");
+            await FirebaseClient.SetAsync($"fakepath/{id}/OnGetAsync/name", "PUSH4GET1");
 
             await Task.Delay(2000);
 
@@ -192,7 +158,7 @@ namespace FireSharp.Tests
                 priority = 2
             };
 
-            var response = _client.Push("todos/push", todo);
+            var response = FirebaseClient.Push("todos/push", todo);
             Assert.NotNull(response);
             Assert.NotNull(response.Result);
             Assert.NotNull(response.Result.Name); /*Returns pushed data name like -J8LR7PDCdz_i9H41kf7*/
@@ -208,7 +174,7 @@ namespace FireSharp.Tests
                 priority = 2
             };
 
-            var response = await _client.PushAsync("todos/push/pushAsync", todo);
+            var response = await FirebaseClient.PushAsync("todos/push/pushAsync", todo);
             Assert.NotNull(response);
             Assert.NotNull(response.Result);
             Assert.NotNull(response.Result.Name); /*Returns pushed data name like -J8LR7PDCdz_i9H41kf7*/
@@ -222,11 +188,11 @@ namespace FireSharp.Tests
             // the same DB, but with a BasePath which does not contain the unnecessary trailing slash.
             var secondClientToTest = new FirebaseClient(new FirebaseConfig
             {
-                AuthSecret = _firebaseSecret,
-                BasePath = _basePathWithoutSlash
+                AuthSecret = FirebaseSecret,
+                BasePath = FirebaseUrlWithoutSlash
             });
 
-            await _client.PushAsync("todos/get/pushAsync", new Todo
+            await FirebaseClient.PushAsync("todos/get/pushAsync", new Todo
             {
                 name = "SecondConnectionWithoutSlash",
                 priority = 3
@@ -248,14 +214,14 @@ namespace FireSharp.Tests
                 name = "Execute SET",
                 priority = 2
             };
-            var response = _client.Set("todos/set", todo);
+            var response = FirebaseClient.Set("todos/set", todo);
             var result = response.ResultAs<Todo>();
             Assert.NotNull(response);
             Assert.AreEqual(todo.name, result.name);
 
             // overwrite the todo we just set
-            response = _client.Set("todos", todo);
-            var getResponse = _client.Get("/todos/set");
+            response = FirebaseClient.Set("todos", todo);
+            var getResponse = FirebaseClient.Get("/todos/set");
             result = getResponse.ResultAs<Todo>();
             Assert.Null(result);
         }
@@ -268,14 +234,14 @@ namespace FireSharp.Tests
                 name = "Execute SET",
                 priority = 2
             };
-            var response = await _client.SetAsync("todos/setAsync", todo);
+            var response = await FirebaseClient.SetAsync("todos/setAsync", todo);
             var result = response.ResultAs<Todo>();
             Assert.NotNull(response);
             Assert.AreEqual(todo.name, result.name);
 
             // overwrite the todo we just set
-            response = await _client.SetAsync("todos", todo);
-            var getResponse = await _client.GetAsync("/todos/setAsync");
+            response = await FirebaseClient.SetAsync("todos", todo);
+            var getResponse = await FirebaseClient.GetAsync("/todos/setAsync");
             result = getResponse.ResultAs<Todo>();
             Assert.Null(result);
         }
@@ -283,7 +249,7 @@ namespace FireSharp.Tests
         [Test, Category("INTEGRATION"), Category("SYNC")]
         public void Update()
         {
-            _client.Set("todos/updatetest/set", new Todo
+            FirebaseClient.Set("todos/updatetest/set", new Todo
             {
                 name = "Execute SET",
                 priority = 2
@@ -295,7 +261,7 @@ namespace FireSharp.Tests
                 priority = 1
             };
 
-            var response = _client.Update("todos/updatetest/set", todoToUpdate);
+            var response = FirebaseClient.Update("todos/updatetest/set", todoToUpdate);
             Assert.NotNull(response);
             var actual = response.ResultAs<Todo>();
             Assert.AreEqual(todoToUpdate.name, actual.name);
@@ -305,7 +271,7 @@ namespace FireSharp.Tests
         [Test, Category("INTEGRATION"), Category("ASYNC")]
         public async void UpdateAsync()
         {
-            await _client.SetAsync("todos/set/setAsync", new Todo
+            await FirebaseClient.SetAsync("todos/set/setAsync", new Todo
             {
                 name = "Execute SET",
                 priority = 2
@@ -317,7 +283,7 @@ namespace FireSharp.Tests
                 priority = 1
             };
 
-            var response = await _client.UpdateAsync("todos/set/setAsync", todoToUpdate);
+            var response = await FirebaseClient.UpdateAsync("todos/set/setAsync", todoToUpdate);
             Assert.NotNull(response);
             var actual = response.ResultAs<Todo>();
             Assert.AreEqual(todoToUpdate.name, actual.name);
@@ -327,7 +293,7 @@ namespace FireSharp.Tests
         [Test, ExpectedException(typeof(FirebaseException)), Category("INTEGRATION"), Category("SYNC")]
         public void UpdateFailure()
         {
-            var response = _client.Update("todos", true);
+            var response = FirebaseClient.Update("todos", true);
         }
 
         [Test, Category("INTEGRATION"), Category("ASYNC")]
@@ -335,20 +301,20 @@ namespace FireSharp.Tests
         {
             await AssertExtensions.ThrowsAsync<FirebaseException>(async () =>
             {
-                var response = await _client.UpdateAsync("todos", true);
+                var response = await FirebaseClient.UpdateAsync("todos", true);
             });
         }
 
         [Test, Category("INTEGRATION"), Category("ASYNC")]
         public async void GetWithQueryAsync()
         {
-            await _client.PushAsync("todos/get/pushAsync", new Todo
+            await FirebaseClient.PushAsync("todos/get/pushAsync", new Todo
             {
                 name = "Execute PUSH4GET",
                 priority = 2
             });
 
-            await _client.PushAsync("todos/get/pushAsync", new Todo
+            await FirebaseClient.PushAsync("todos/get/pushAsync", new Todo
             {
                 name = "You PUSH4GET",
                 priority = 2
@@ -356,7 +322,7 @@ namespace FireSharp.Tests
 
             Thread.Sleep(400);
 
-            var response = await _client.GetAsync("todos", QueryBuilder.New().OrderBy("$key").StartAt("Exe"));
+            var response = await FirebaseClient.GetAsync("todos", QueryBuilder.New().OrderBy("$key").StartAt("Exe"));
             Assert.NotNull(response);
             Assert.IsTrue(response.Body.Contains("name"));
         }

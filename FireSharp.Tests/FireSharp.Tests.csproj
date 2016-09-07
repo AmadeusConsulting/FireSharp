@@ -133,6 +133,8 @@
     <Compile Include="FirebaseQueryTests.cs" />
     <Compile Include="FiresharpTests.cs" />
     <Compile Include="FirebaseClientTests.cs" />
+    <Compile Include="FiresharpTestsBase.cs" />
+    <Compile Include="GeoHashingTests.cs" />
     <Compile Include="Mocks\MockableHttpMessageHandler.cs" />
     <Compile Include="Models\Todo.cs" />
     <Compile Include="Program.cs" />
@@ -144,6 +146,10 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\FireSharp.GeoFire\FireSharp.GeoFire.csproj">
+      <Project>{9E0EB031-CB0F-46D4-BF59-FCDAB1E3986E}</Project>
+      <Name>FireSharp.GeoFire</Name>
+    </ProjectReference>
     <ProjectReference Include="..\FireSharp\FireSharp.csproj">
       <Project>{67b7ea6f-dc34-4f48-8331-58df137d78c9}</Project>
       <Name>FireSharp</Name>

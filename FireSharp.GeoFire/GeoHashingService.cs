@@ -114,7 +114,7 @@ namespace FireSharp.GeoFire
 
         #region Public Methods and Operators
 
-        public async Task<IDictionary<string, LocationSearchResult>> FindLocations(GeographyPoint center, double radiusKm)
+        public async Task<IDictionary<string, LocationSearchResult>> FindLocationsAsync(GeographyPoint center, double radiusKm)
         {
             _log.Debug($"#### Finding locations for center point [{center.Latitude}, {center.Longitude}] with radius of {radiusKm} km ####");
 
@@ -147,7 +147,7 @@ namespace FireSharp.GeoFire
             return candidateLocations.Where(l => l.Value.DistanceToCenterKm <= radiusKm).ToDictionary(k => k.Key, v => v.Value);
         }
 
-        public async Task SetLocation(string key, double latitude, double longitude, IDictionary<string, string> metadata = null)
+        public async Task SetLocationAsync(string key, double latitude, double longitude, IDictionary<string, string> metadata = null)
         {
             if (string.IsNullOrEmpty(key))
             {

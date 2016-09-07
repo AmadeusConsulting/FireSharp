@@ -25,6 +25,10 @@ namespace FireSharp.Tests
 {
     public class CustomTokenTests : TestBase
     {
+        private string _serviceAccountJsonFilePath;
+
+        private string _googleApiKey;
+
         private const string PrivateKey = @"-----BEGIN RSA PRIVATE KEY-----
 MIIEowIBAAKCAQEA0Ki6oahn30WLnX96HShUFzd6EjHrFv4W2AC8FsVG9eVqXNWG
 x1FEwaSO1OQ4N+jO7YHL4z0KS3l45LQMh4Yav3gJG8KrPKfMDE5DujAVYA1uW5vV
@@ -63,6 +67,13 @@ nml6IxDNUFXUW4HUavLt/E3LRJgnUcACODlybIoQqlrPh/iuao89wfki7vk+6Dhn
 +wIDAQAB
 -----END PUBLIC KEY-----";
 
+        [TestFixtureSetUp]
+        public void FixtureSetUp()
+        {
+            _serviceAccountJsonFilePath = ConfigurationManager.AppSettings["FireSharp.Tests.GoogleServiceAccount.JsonFilePath"];
+            _googleApiKey = ConfigurationManager.AppSettings["FireSharp.Tests.GoogleApiKey"];
+        }
+
 
         [Test]
         public void GenerateCustomToken()
@@ -94,8 +105,13 @@ nml6IxDNUFXUW4HUavLt/E3LRJgnUcACODlybIoQqlrPh/iuao89wfki7vk+6Dhn
         [Test]
         public async void GenerateValidToken()
         {
-            var googleCredentialsJson = File.ReadAllText(ConfigurationManager.AppSettings["FireSharp.Tests.GoogleServiceAccount.JsonFilePath"]);
-            var googleApiKey = ConfigurationManager.AppSettings["FireSharp.Tests.GoogleApiKey"];
+            if (string.IsNullOrEmpty(_serviceAccountJsonFilePath) || string.IsNullOrEmpty(_googleApiKey))
+            {
+                Assert.Inconclusive();
+            }
+
+            var googleCredentialsJson = File.ReadAllText(_serviceAccountJsonFilePath);
+            var googleApiKey = _googleApiKey;
 
             var googleCredentials = JsonConvert.DeserializeObject<GoogleCloudCredentials>(googleCredentialsJson);
             var tokenGenerator = new FirebaseCustomTokenGenerator(googleCredentials, new FirebaseConfig());
@@ -143,8 +159,13 @@ nml6IxDNUFXUW4HUavLt/E3LRJgnUcACODlybIoQqlrPh/iuao89wfki7vk+6Dhn
         [Test]
         public async void GenerateValidTokenWithCustomClaims()
         {
-            var googleCredentialsJson = File.ReadAllText(ConfigurationManager.AppSettings["FireSharp.Tests.GoogleServiceAccount.JsonFilePath"]);
-            var googleApiKey = ConfigurationManager.AppSettings["FireSharp.Tests.GoogleApiKey"];
+            if (string.IsNullOrEmpty(_serviceAccountJsonFilePath) || string.IsNullOrEmpty(_googleApiKey))
+            {
+                Assert.Inconclusive();
+            }
+
+            var googleCredentialsJson = File.ReadAllText(_serviceAccountJsonFilePath);
+            var googleApiKey = _googleApiKey;
 
             var googleCredentials = JsonConvert.DeserializeObject<GoogleCloudCredentials>(googleCredentialsJson);
             var tokenGenerator = new FirebaseCustomTokenGenerator(googleCredentials, new FirebaseConfig());
@@ -198,8 +219,13 @@ nml6IxDNUFXUW4HUavLt/E3LRJgnUcACODlybIoQqlrPh/iuao89wfki7vk+6Dhn
         [Test]
         public async void CreateValidTokenWithEmptyClaims()
         {
-            var googleCredentialsJson = File.ReadAllText(ConfigurationManager.AppSettings["FireSharp.Tests.GoogleServiceAccount.JsonFilePath"]);
-            var googleApiKey = ConfigurationManager.AppSettings["FireSharp.Tests.GoogleApiKey"];
+            if (string.IsNullOrEmpty(_serviceAccountJsonFilePath) || string.IsNullOrEmpty(_googleApiKey))
+            {
+                Assert.Inconclusive();
+            }
+
+            var googleCredentialsJson = File.ReadAllText(_serviceAccountJsonFilePath);
+            var googleApiKey = _googleApiKey;
 
             var googleCredentials = JsonConvert.DeserializeObject<GoogleCloudCredentials>(googleCredentialsJson);
             var tokenGenerator = new FirebaseCustomTokenGenerator(googleCredentials, new FirebaseConfig());
