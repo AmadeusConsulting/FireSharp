@@ -102,7 +102,7 @@ nml6IxDNUFXUW4HUavLt/E3LRJgnUcACODlybIoQqlrPh/iuao89wfki7vk+6Dhn
             Assert.AreEqual("123", payload["uid"]);
         }
 
-        [Test]
+        [Test, Category("INTEGRATION")]
         public async void GenerateValidToken()
         {
             if (string.IsNullOrEmpty(_serviceAccountJsonFilePath) || string.IsNullOrEmpty(_googleApiKey))
@@ -156,7 +156,7 @@ nml6IxDNUFXUW4HUavLt/E3LRJgnUcACODlybIoQqlrPh/iuao89wfki7vk+6Dhn
             Assert.AreEqual("identitytoolkit#VerifyCustomTokenResponse", responseValues["kind"]);
         }
 
-        [Test]
+        [Test, Category("INTEGRATION")]
         public async void GenerateValidTokenWithCustomClaims()
         {
             if (string.IsNullOrEmpty(_serviceAccountJsonFilePath) || string.IsNullOrEmpty(_googleApiKey))
@@ -216,7 +216,7 @@ nml6IxDNUFXUW4HUavLt/E3LRJgnUcACODlybIoQqlrPh/iuao89wfki7vk+6Dhn
             Assert.AreEqual("identitytoolkit#VerifyCustomTokenResponse", responseValues["kind"]);
         }
 
-        [Test]
+        [Test, Category("INTEGRATION")]
         public async void CreateValidTokenWithEmptyClaims()
         {
             if (string.IsNullOrEmpty(_serviceAccountJsonFilePath) || string.IsNullOrEmpty(_googleApiKey))

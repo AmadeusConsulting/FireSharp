@@ -62,7 +62,7 @@ namespace FireSharp.Tests
             }
         }
 
-        [Test]
+        [Test, Category("INTEGRATION")]
         public async void FindsLocationsWithin5Km()
         {
             if (FirebaseClient == null)
@@ -78,7 +78,7 @@ namespace FireSharp.Tests
             Assert.IsTrue(found.Keys.Contains("StatueOfLiberty"));
         }
 
-        [Test]
+        [Test, Category("INTEGRATION")]
         public async void FindsLocationsWithin10Km()
         {
             if (FirebaseClient == null)
@@ -95,7 +95,7 @@ namespace FireSharp.Tests
             Assert.IsTrue(found.Keys.Contains("EmpireStateBuilding"));
         }
 
-        [Test]
+        [Test, Category("INTEGRATION")]
         public async void FindsLocationsWithin200Km()
         {
             if (FirebaseClient == null)

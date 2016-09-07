@@ -25,6 +25,11 @@ namespace FireSharp.Tests
         [Test, Category("INTEGRATION")]
         public void Delete()
         {
+            if (FirebaseClient == null)
+            {
+                Assert.Inconclusive();
+            }
+
             FirebaseClient.Push("todos/push", new Todo
             {
                 name = "Execute PUSH4GET",
@@ -38,6 +43,11 @@ namespace FireSharp.Tests
         [Test, Category("INTEGRATION"), Category("ASYNC")]
         public async Task DeleteAsync()
         {
+            if (FirebaseClient == null)
+            {
+                Assert.Inconclusive();
+            }
+
             await FirebaseClient.PushAsync("todos/pushAsync", new Todo
             {
                 name = "Execute PUSH4GET",
@@ -51,6 +61,11 @@ namespace FireSharp.Tests
         [Test, Category("INTEGRATION"), Category("SYNC")]
         public void Get()
         {
+            if (FirebaseClient == null)
+            {
+                Assert.Inconclusive();
+            }
+
             FirebaseClient.Push("todos/gettest/push", new Todo
             {
                 name = "Execute PUSH4GET",
@@ -68,6 +83,11 @@ namespace FireSharp.Tests
         [Test, Category("INTEGRATION"), Category("ASYNC")]
         public async void GetAsync()
         {
+            if (FirebaseClient == null)
+            {
+                Assert.Inconclusive();
+            }
+
             await FirebaseClient.PushAsync("todos/get/pushAsync", new Todo
             {
                 name = "Execute PUSH4GET",
@@ -84,6 +104,11 @@ namespace FireSharp.Tests
         [Test, Category("INTEGRATION")]
         public async void GetListAsync()
         {
+            if (FirebaseClient == null)
+            {
+                Assert.Inconclusive();
+            }
+
             var expected = new List<Todo>
             {
                 new Todo {name = "Execute PUSH4GET1", priority = 2},
@@ -116,6 +141,11 @@ namespace FireSharp.Tests
         [Test, Category("INTEGRATION")]
         public async void OnChangeGetAsync()
         {
+            if (FirebaseClient == null)
+            {
+                Assert.Inconclusive();
+            }
+
             var id = Guid.NewGuid().ToString("N");
 
             var changes = new ConcurrentBag<Todo>();
@@ -152,6 +182,11 @@ namespace FireSharp.Tests
         [Test, Category("INTEGRATION"), Category("SYNC")]
         public void Push()
         {
+            if (FirebaseClient == null)
+            {
+                Assert.Inconclusive();
+            }
+
             var todo = new Todo
             {
                 name = "Execute PUSH4",
@@ -168,6 +203,11 @@ namespace FireSharp.Tests
         [Test, Category("INTEGRATION"), Category("ASYNC")]
         public async void PushAsync()
         {
+            if (FirebaseClient == null)
+            {
+                Assert.Inconclusive();
+            }
+
             var todo = new Todo
             {
                 name = "Execute PUSH4",
@@ -184,6 +224,11 @@ namespace FireSharp.Tests
         [Test, Category("INTEGRATION"), Category("ASYNC")]
         public async Task SecondConnectionWithoutSlash()
         {
+            if (FirebaseClient == null)
+            {
+                Assert.Inconclusive();
+            }
+
             // This integration test will write from _config but read from a second Firebase connection to
             // the same DB, but with a BasePath which does not contain the unnecessary trailing slash.
             var secondClientToTest = new FirebaseClient(new FirebaseConfig
@@ -209,6 +254,11 @@ namespace FireSharp.Tests
         [Test, Category("INTEGRATION"), Category("SYNC")]
         public void Set()
         {
+            if (FirebaseClient == null)
+            {
+                Assert.Inconclusive();
+            }
+
             var todo = new Todo
             {
                 name = "Execute SET",
@@ -229,6 +279,11 @@ namespace FireSharp.Tests
         [Test, Category("INTEGRATION"), Category("ASYNC")]
         public async void SetAsync()
         {
+            if (FirebaseClient == null)
+            {
+                Assert.Inconclusive();
+            }
+
             var todo = new Todo
             {
                 name = "Execute SET",
@@ -249,6 +304,11 @@ namespace FireSharp.Tests
         [Test, Category("INTEGRATION"), Category("SYNC")]
         public void Update()
         {
+            if (FirebaseClient == null)
+            {
+                Assert.Inconclusive();
+            }
+
             FirebaseClient.Set("todos/updatetest/set", new Todo
             {
                 name = "Execute SET",
@@ -271,6 +331,11 @@ namespace FireSharp.Tests
         [Test, Category("INTEGRATION"), Category("ASYNC")]
         public async void UpdateAsync()
         {
+            if (FirebaseClient == null)
+            {
+                Assert.Inconclusive();
+            }
+
             await FirebaseClient.SetAsync("todos/set/setAsync", new Todo
             {
                 name = "Execute SET",
@@ -293,12 +358,22 @@ namespace FireSharp.Tests
         [Test, ExpectedException(typeof(FirebaseException)), Category("INTEGRATION"), Category("SYNC")]
         public void UpdateFailure()
         {
+            if (FirebaseClient == null)
+            {
+                Assert.Inconclusive();
+            }
+
             var response = FirebaseClient.Update("todos", true);
         }
 
         [Test, Category("INTEGRATION"), Category("ASYNC")]
         public async void UpdateFailureAsync()
         {
+            if (FirebaseClient == null)
+            {
+                Assert.Inconclusive();
+            }
+
             await AssertExtensions.ThrowsAsync<FirebaseException>(async () =>
             {
                 var response = await FirebaseClient.UpdateAsync("todos", true);
@@ -308,6 +383,11 @@ namespace FireSharp.Tests
         [Test, Category("INTEGRATION"), Category("ASYNC")]
         public async void GetWithQueryAsync()
         {
+            if (FirebaseClient == null)
+            {
+                Assert.Inconclusive();
+            }
+
             await FirebaseClient.PushAsync("todos/get/pushAsync", new Todo
             {
                 name = "Execute PUSH4GET",
