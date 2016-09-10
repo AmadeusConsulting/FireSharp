@@ -29,16 +29,16 @@ namespace FireSharp
         {
             return new QueryBuilder(initialQuery);
         }
-        public QueryBuilder StartAt(string value)
+        public QueryBuilder StartAt(object value)
         {
-            return AddToQueryDictionary(startAtParam, value);
+            return AddToQueryDictionary(startAtParam, value, skipQuotesForNonString: true);
         }
 
-        public QueryBuilder EndAt(string value)
+        public QueryBuilder EndAt(object value)
         {
-            return AddToQueryDictionary(endAtParam, value);
+            return AddToQueryDictionary(endAtParam, value, skipQuotesForNonString: true);
         }
-
+        
         public QueryBuilder EqualTo(object value)
         {
             return AddToQueryDictionary(equalToParam, value, skipQuotesForNonString: true);
@@ -58,9 +58,7 @@ namespace FireSharp
         {
             return AddToQueryDictionary(limitToLastParam, value > 0 ? value.ToString() : string.Empty, skipEncoding: true);
         }
-
-
-
+        
         public QueryBuilder Shallow(bool value)
         {
             return AddToQueryDictionary(shallowParam, value ? "true" : string.Empty, skipEncoding: true);

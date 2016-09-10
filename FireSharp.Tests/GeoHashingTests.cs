@@ -113,9 +113,10 @@ namespace FireSharp.Tests
             Assert.IsTrue(found.Keys.Contains("LibertyBell"));
         }
 
-        protected override void SetUpUniqueFirebaseUrlPath()
+        protected override string SetUpUniqueFirebaseUrlPath()
         {
             // no unique path needed for locations (in fact, we need a specific location that has indexing configured)
+            return string.Empty;
         }
     }
 }

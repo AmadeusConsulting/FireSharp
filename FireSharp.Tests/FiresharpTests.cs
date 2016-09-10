@@ -7,19 +7,108 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace FireSharp.Tests
 {
     public class FiresharpTests : FiresharpTestsBase
     {
-        protected override async void FinalizeTearDown()
+        private string _rulesUrl;
+
+        [SetUp]
+        public async void SetUp()
         {
             var task1 = FirebaseClient.DeleteAsync("todos");
             var task2 = FirebaseClient.DeleteAsync("fakepath");
 
+
             await Task.WhenAll(task1, task2);
+        }
+
+        protected override string SetUpUniqueFirebaseUrlPath()
+        {
+            var httpClient = new HttpClient();
+
+            _rulesUrl = $"{FirebaseUrl}.settings/rules.json?auth={FirebaseSecret}";
+
+            string uniqueId = base.SetUpUniqueFirebaseUrlPath();
+
+            var rules = GetFirebaseRules(_rulesUrl, httpClient);
+
+            rules[uniqueId] = new JObject();
+            var uniqueIdRules = (JObject)rules[uniqueId];
+            uniqueIdRules["todos"] = new JObject(
+                new JObject
+                    {
+                        {
+                            "get", new JObject(
+                            new JObject
+                                {
+                                    {
+                                        "pushAsync", new JObject
+                                                         {
+                                                             { ".indexOn", "priority" }
+                                                         }
+                                    }
+                                })
+                        }
+                    });
+           
+            
+            SetFirebaseRules(rules, _rulesUrl, httpClient);
+
+            return uniqueId;
+        }
+
+        private static void SetFirebaseRules(JObject rules, string rulesUrl, HttpClient httpClient)
+        {
+            var rulesWrapper = new JObject
+                                   {
+                                       ["rules"] = rules
+                                   };
+
+            var rulesUpdateRequest = new HttpRequestMessage(HttpMethod.Put, rulesUrl)
+                                         {
+                                             Content = new StringContent(JsonConvert.SerializeObject(rulesWrapper), Encoding.UTF8, "application/json")
+                                         };
+
+            var updateRulesResponse = httpClient.SendAsync(rulesUpdateRequest).Result;
+
+            if (updateRulesResponse.StatusCode != HttpStatusCode.OK)
+            {
+                throw new Exception(
+                    $"Response status code for updating rules did not indicate success: {updateRulesResponse.StatusCode}");
+            }
+        }
+
+        private JObject GetFirebaseRules(string rulesUrl, HttpClient httpClient)
+        {
+            var rulesGetRequest = new HttpRequestMessage(HttpMethod.Get, rulesUrl);
+
+            var rulesResponse = httpClient.SendAsync(rulesGetRequest).Result;
+
+            var rulesResponseContent = JsonConvert.DeserializeObject<Dictionary<string, object>>(rulesResponse.Content.ReadAsStringAsync().Result);
+
+            var rules = (JObject)rulesResponseContent["rules"];
+            
+            return rules;
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            var httpClient = new HttpClient();
+
+            var rules = GetFirebaseRules(_rulesUrl, httpClient);
+
+            rules.Remove(UniquePathId);
         }
 
         [Test, Category("INTEGRATION")]
@@ -405,6 +494,62 @@ namespace FireSharp.Tests
             var response = await FirebaseClient.GetAsync("todos", QueryBuilder.New().OrderBy("$key").StartAt("Exe"));
             Assert.NotNull(response);
             Assert.IsTrue(response.Body.Contains("name"));
+        }
+
+        [Test]
+        public async void GetWithNonStringStartEndQueryAsync()
+        {
+            if (FirebaseClient == null)
+            {
+                Assert.Inconclusive();
+            }
+
+            const string TodosPushLocation = "todos/get/pushAsync";
+
+            await FirebaseClient.PushAsync(
+                TodosPushLocation,
+                new Todo
+                    {
+                        name = "Priority 1",
+                        priority = 1
+                    });
+
+            await FirebaseClient.PushAsync(
+                TodosPushLocation,
+                new Todo
+                    {
+                        name = "Priority 2",
+                        priority = 2
+                    });
+
+            await FirebaseClient.PushAsync(
+                TodosPushLocation,
+                new Todo
+                {
+                    name = "Priority 3",
+                    priority = 3
+                });
+
+            await FirebaseClient.PushAsync(
+                TodosPushLocation,
+                new Todo
+                {
+                    name = "Priority 4",
+                    priority = 4
+                });
+
+            await FirebaseClient.PushAsync(
+                TodosPushLocation,
+                new Todo
+                {
+                    name = "Priority 5",
+                    priority = 5
+                });
+
+            var response = await FirebaseClient.GetAsync(TodosPushLocation, QueryBuilder.New().OrderBy("priority").StartAt(2).EndAt(4));
+            Assert.NotNull(response);
+            Assert.IsTrue(response.Body.Contains("Priority 4") && response.Body.Contains("Priority 3") && response.Body.Contains("Priority 2"));
+            Assert.IsFalse(response.Body.Contains("Priority 1") || response.Body.Contains("Priority 5"));
         }
     }
 }

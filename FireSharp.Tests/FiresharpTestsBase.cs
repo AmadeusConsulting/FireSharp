@@ -1,10 +1,14 @@
 using System;
+using System.Collections.Generic;
 using System.Configuration;
+using System.Net.Http;
 
 using Common.Testing.NUnit;
 
 using FireSharp.Config;
 using FireSharp.Interfaces;
+
+using Newtonsoft.Json;
 
 using NUnit.Framework;
 
@@ -22,6 +26,8 @@ namespace FireSharp.Tests
 
         protected string FirebaseSecret;
 
+        protected string UniquePathId;
+
         [TestFixtureSetUp]
         public virtual void TestFixtureSetUp()
         {
@@ -35,7 +41,7 @@ namespace FireSharp.Tests
                     FirebaseUrl = $"{FirebaseUrl}/";
                 }
 
-                SetUpUniqueFirebaseUrlPath();
+                UniquePathId = SetUpUniqueFirebaseUrlPath();
                 FirebaseUrlWithoutSlash = FirebaseUrl.Substring(0, FirebaseUrl.Length - 1);
 
                 Config = new FirebaseConfig
@@ -48,11 +54,17 @@ namespace FireSharp.Tests
             }
         }
 
-        protected virtual void SetUpUniqueFirebaseUrlPath()
+        protected virtual string SetUpUniqueFirebaseUrlPath()
         {
-            var uniqueId = Guid.NewGuid().ToString("N");
+            if (!string.IsNullOrEmpty(FirebaseUrl))
+            {
+                var uniqueId = Guid.NewGuid().ToString("N");
 
-            FirebaseUrl = $"{FirebaseUrl}{uniqueId}/";
+                FirebaseUrl = $"{FirebaseUrl}{uniqueId}/";
+
+                return uniqueId;
+            }
+            return string.Empty;
         }
     }
 }
