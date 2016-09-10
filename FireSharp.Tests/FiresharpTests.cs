@@ -102,13 +102,18 @@ namespace FireSharp.Tests
         }
 
         [TearDown]
-        public void TearDown()
+        public async void TearDown()
         {
             var httpClient = new HttpClient();
 
             var rules = GetFirebaseRules(_rulesUrl, httpClient);
 
             rules.Remove(UniquePathId);
+
+            var task1 = FirebaseClient.DeleteAsync("todos");
+            var task2 = FirebaseClient.DeleteAsync("fakepath");
+
+            await Task.WhenAll(task1, task2);
         }
 
         [Test, Category("INTEGRATION")]
@@ -239,7 +244,7 @@ namespace FireSharp.Tests
 
             var changes = new ConcurrentBag<Todo>();
 
-            var expected = new Todo { name = "Execute PUSH4GET1", priority = 2 };
+            var expected = new Todo { name = "Execute CHANGEGETASYNC", priority = 2 };
             
             var observer = FirebaseClient.OnChangeGetAsync<Todo>($"fakepath/{id}/OnGetAsync/", (events, arg) =>
             {
@@ -250,7 +255,7 @@ namespace FireSharp.Tests
 
             await Task.Delay(2000);
 
-            await FirebaseClient.SetAsync($"fakepath/{id}/OnGetAsync/name", "PUSH4GET1");
+            await FirebaseClient.SetAsync($"fakepath/{id}/OnGetAsync/name", "CHANGEGETASYNC-MODIFIED");
 
             await Task.Delay(2000);
 
@@ -260,7 +265,7 @@ namespace FireSharp.Tests
 
                 Assert.AreEqual(0, changes.Count(todo => todo == null));
                 Assert.AreEqual(1, changes.Count(todo => todo.name == expected.name));
-                Assert.AreEqual(1, changes.Count(todo => todo.name == "PUSH4GET1"));
+                Assert.AreEqual(1, changes.Count(todo => todo.name == "CHANGEGETASYNC-MODIFIED"));
             }
             finally
             {
