@@ -233,6 +233,7 @@ namespace FireSharp.Tests
         }
 
         [Test, Category("INTEGRATION")]
+        [Ignore]
         public void OnChangeGetAsync()
         {
             if (FirebaseClient == null)
