@@ -7,6 +7,7 @@ using Common.Testing.NUnit;
 
 using FireSharp.Config;
 using FireSharp.Interfaces;
+using FireSharp.Tests.Logging;
 
 using Newtonsoft.Json;
 
@@ -47,7 +48,8 @@ namespace FireSharp.Tests
                 Config = new FirebaseConfig
                 {
                     AuthSecret = FirebaseSecret,
-                    BasePath = FirebaseUrl
+                    BasePath = FirebaseUrl, 
+                    LogManager = new Log4NetLogManager()
                 };
 
                 FirebaseClient = new FirebaseClient(Config); //Uses Newtonsoft.Json Json Serializer 

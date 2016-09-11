@@ -15,6 +15,7 @@ using FireSharp.Interfaces;
 using FireSharp.Logging;
 
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace FireSharp.Response
 {
@@ -152,12 +153,22 @@ namespace FireSharp.Response
                                             {
                                                 // this is an addition of multiple entities, which occurs 
                                                 // when first listening to a path with existing entites
-                                                var entityDict = dataJson.ReadAs<Dictionary<string, T>>();
+                                                var entityDict = dataJson.ReadAs<Dictionary<string, JToken>>();
                                                 foreach (var key in entityDict.Keys)
                                                 {
-                                                    var entity = entityDict[key];
-                                                    await Cache.AddOrUpdate(key, entity);
-                                                    _added(this, key, entity);
+                                                    var jtoken = entityDict[key];
+                                                    try
+                                                    {
+                                                        var entity = jtoken.ToObject<T>();
+                                                        await Cache.AddOrUpdate(key, entity);
+                                                        _added(this, key, entity);
+                                                    }
+                                                    catch (Exception ex)
+                                                    {
+                                                        _log.Error(
+                                                            $"Error converting entity list value to {typeof(T).Name}.  The value was: \n{jtoken}",
+                                                            ex);
+                                                    }
                                                 }
                                             }
                                             else

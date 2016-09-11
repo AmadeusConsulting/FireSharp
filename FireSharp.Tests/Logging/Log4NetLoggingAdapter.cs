@@ -2,7 +2,7 @@
 
 using FireSharp.Logging;
 
-namespace FireSharp.Test.Console
+namespace FireSharp.Tests.Logging
 {
     public class Log4NetLoggingAdapter : ILog
     {

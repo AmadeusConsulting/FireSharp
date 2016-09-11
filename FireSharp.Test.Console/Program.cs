@@ -7,6 +7,7 @@ using FireSharp.Config;
 using FireSharp.EventStreaming;
 using FireSharp.Interfaces;
 using FireSharp.Security;
+using FireSharp.Tests.Logging;
 
 using log4net;
 using log4net.Config;

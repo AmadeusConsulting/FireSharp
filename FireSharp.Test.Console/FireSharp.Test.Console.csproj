@@ -99,8 +99,6 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Log4NetLoggingAdapter.cs" />
-    <Compile Include="Log4NetLogManager.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
@@ -112,6 +110,10 @@
     <ProjectReference Include="..\FireSharp.GeoFire\FireSharp.GeoFire.csproj">
       <Project>{9e0eb031-cb0f-46d4-bf59-fcdab1e3986e}</Project>
       <Name>FireSharp.GeoFire</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\FireSharp.Tests\FireSharp.Tests.csproj">
+      <Project>{F7C691EB-249D-48D7-BE52-DF33C55B1F96}</Project>
+      <Name>FireSharp.Tests</Name>
     </ProjectReference>
     <ProjectReference Include="..\FireSharp\FireSharp.csproj">
       <Project>{67b7ea6f-dc34-4f48-8331-58df137d78c9}</Project>

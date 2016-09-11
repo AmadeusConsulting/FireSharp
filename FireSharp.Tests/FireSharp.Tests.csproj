@@ -53,6 +53,10 @@
       <HintPath>..\packages\jose-pcl.0.0.4\lib\portable-net45+netcore45+wpa81+wp8\jose-pcl.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="log4net, Version=1.2.15.0, Culture=neutral, PublicKeyToken=669e0ddf0bb1aa2a, processorArchitecture=MSIL">
+      <HintPath>..\packages\log4net.2.0.5\lib\net45-full\log4net.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="Microsoft.Threading.Tasks, Version=1.0.12.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\packages\Microsoft.Bcl.Async.1.0.168\lib\net40\Microsoft.Threading.Tasks.dll</HintPath>
@@ -135,6 +139,8 @@
     <Compile Include="FirebaseClientTests.cs" />
     <Compile Include="FiresharpTestsBase.cs" />
     <Compile Include="GeoHashingTests.cs" />
+    <Compile Include="Logging\Log4NetLoggingAdapter.cs" />
+    <Compile Include="Logging\Log4NetLogManager.cs" />
     <Compile Include="Mocks\MockableHttpMessageHandler.cs" />
     <Compile Include="Models\Todo.cs" />
     <Compile Include="Program.cs" />

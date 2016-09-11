@@ -9,6 +9,8 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 
+using FireSharp.Logging;
+
 using Newtonsoft.Json;
 
 namespace FireSharp.Response
@@ -22,8 +24,10 @@ namespace FireSharp.Response
 
         private readonly IRequestManager _requestManager;
 
+        private readonly ILog _log;
+
         internal EventRootResponse(HttpResponseMessage httpResponse, ValueRootAddedEventHandler<T> added,
-            IRequestManager requestManager, string path, ValueRemovedEventHandler removed = null)
+            IRequestManager requestManager, string path, ILogManager logManager, ValueRemovedEventHandler removed = null)
         {
             if (added == null)
             {
@@ -32,6 +36,10 @@ namespace FireSharp.Response
             if (requestManager == null)
             {
                 throw new ArgumentNullException(nameof(requestManager));
+            }
+            if (logManager == null)
+            {
+                throw new ArgumentNullException(nameof(logManager));
             }
             if (string.IsNullOrEmpty(path))
             {
@@ -42,6 +50,7 @@ namespace FireSharp.Response
             _requestManager = requestManager;
             _path = path;
             _removed = removed;
+            _log = logManager.GetLogger(this);
 
             CancellationTokenSource = new CancellationTokenSource();
             PollingTask = ReadLoop(httpResponse, CancellationTokenSource.Token);
@@ -68,6 +77,7 @@ namespace FireSharp.Response
                         if (read.StartsWith("event: "))
                         {
                             eventName = read.Substring(7);
+                            _log.Debug($"Received event '{eventName}'");
                             continue;
                         }
 
@@ -81,6 +91,8 @@ namespace FireSharp.Response
 
                             var json = read.Substring("data: ".Length);
 
+                            _log.Debug($"Received data {json}");
+
                             var data = JsonConvert.DeserializeObject<IDictionary<string, object>>(json);
 
                             if (data.ContainsKey("data") && data["data"] == null)
@@ -90,8 +102,10 @@ namespace FireSharp.Response
                             }
 
                             // Every change on child, will get entire object again.
+                            _log.Debug($"Getting {_path} to fetch updated object");
                             var request = await _requestManager.RequestAsync(HttpMethod.Get, _path);
                             var jsonStr = await request.Content.ReadAsStringAsync().ConfigureAwait(false);
+                            _log.Debug($"Fetched upcated object: \n{jsonStr}");
 
                             _added(this, jsonStr.ReadAs<T>());
                         }

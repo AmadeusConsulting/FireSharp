@@ -1,15 +1,10 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-using FireSharp.Logging;
+﻿using FireSharp.Logging;
 
 using log4net;
 
 using ILog = FireSharp.Logging.ILog;
 
-namespace FireSharp.Test.Console
+namespace FireSharp.Tests.Logging
 {
     public class Log4NetLogManager : ILogManager
     {

@@ -383,7 +383,7 @@ namespace FireSharp
             ValueRootAddedEventHandler<T> added = null)
         {
             return new EventRootResponse<T>(await _requestManager.ListenAsync(path).ConfigureAwait(false), added,
-                _requestManager, path);
+                _requestManager, path, _config.LogManager);
         }
 
         public async Task<EventStreamResponse> OnAsync(string path, ValueAddedEventHandler added = null,
