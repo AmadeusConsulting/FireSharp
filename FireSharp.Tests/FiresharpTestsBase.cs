@@ -48,7 +48,7 @@ namespace FireSharp.Tests
                 Config = new FirebaseConfig
                 {
                     AuthSecret = FirebaseSecret,
-                    BasePath = FirebaseUrl, 
+                    BasePath = FirebaseUrl,
                     LogManager = new Log4NetLogManager()
                 };
 

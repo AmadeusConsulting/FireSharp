@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Security.Policy;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,6 +12,7 @@ using Common.Testing.NUnit;
 
 using FireSharp.Config;
 using FireSharp.Interfaces;
+using FireSharp.Logging;
 using FireSharp.Tests.Mocks;
 using FireSharp.Tests.Models;
 
@@ -29,21 +31,20 @@ namespace FireSharp.Tests
 
         private Mock<MockableHttpMessageHandler> _mockHttpHandler;
 
-        private Mock<IHttpClientHandlerFactory> _handlerFactory;
+        private HttpClient _httpClient;
+
+        private ISerializer _serializer;
 
         protected override void FinalizeSetUp()
         {
+            _serializer = new JsonNetSerializer();
             _mockHttpHandler = MockFor<MockableHttpMessageHandler>();
-            _handlerFactory = MockFor<IHttpClientHandlerFactory>();
-
-            _handlerFactory.Setup(hf => hf.CreateHandler(It.IsAny<bool>())).Returns(_mockHttpHandler.Object);
-
-            _requestManager = new RequestManager(
-                new FirebaseConfig
-                    {
-                        BasePath = "http://not-a-valid-firebase.url",
-                        HttpClientHandlerFactory = _handlerFactory.Object
-                    });
+            _httpClient = new HttpClient(_mockHttpHandler.Object, false)
+                              {
+                                  BaseAddress = new Uri("http://not-a-valid-firebase.url/")
+                              };
+            
+            _requestManager = new RequestManager(_httpClient, _serializer, new NoOpLogManager());
         }
 
         [Test]

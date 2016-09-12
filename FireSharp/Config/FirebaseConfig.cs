@@ -11,7 +11,7 @@ namespace FireSharp.Config
 
         private ILogManager _logManager;
 
-        private IHttpClientHandlerFactory _httpClientHandlerFactory;
+        private IHttpClientProvider _httpClientProvider;
 
         public FirebaseConfig()
         {
@@ -47,15 +47,15 @@ namespace FireSharp.Config
             }
         }
 
-        public IHttpClientHandlerFactory HttpClientHandlerFactory
+        public IHttpClientProvider HttpClientProvider
         {
             get
             {
-                return _httpClientHandlerFactory ?? (_httpClientHandlerFactory = new DefaultHttpClientHandlerFactory());
+                return _httpClientProvider ?? (_httpClientProvider = new DefaulFireSharpHttpClientProvider());
             }
             set
             {
-                _httpClientHandlerFactory = value;
+                _httpClientProvider = value;
             }
         }
     }

@@ -25,9 +25,15 @@ namespace FireSharp
 
 
         public FirebaseClient(IFirebaseConfig config)
-            : this(new RequestManager(config), config)
-        {
-        }
+            : this(
+                new RequestManager(
+                    config.HttpClientProvider.GetHttpClient(new Uri(config.BasePath), config.RequestTimeout),
+                    config.Serializer,
+                    config.LogManager,
+                    authSecret: config.AuthSecret,
+                    apiHost: config.Host),
+                config)
+        {}
 
         ~FirebaseClient()
         {
