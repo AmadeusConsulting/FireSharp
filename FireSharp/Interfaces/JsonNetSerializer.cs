@@ -2,7 +2,7 @@ using Newtonsoft.Json;
 
 namespace FireSharp.Interfaces
 {
-    internal class JsonNetSerializer : ISerializer
+    public class JsonNetSerializer : ISerializer
     {
         public T Deserialize<T>(string json)
         {
