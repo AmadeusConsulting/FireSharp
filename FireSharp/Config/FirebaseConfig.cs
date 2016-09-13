@@ -13,6 +13,8 @@ namespace FireSharp.Config
 
         private IHttpClientProvider _httpClientProvider;
 
+        private IEventStreamCacheProvider _cacheProvider;
+
         public FirebaseConfig()
         {
             Serializer = new JsonNetSerializer();
@@ -56,6 +58,18 @@ namespace FireSharp.Config
             set
             {
                 _httpClientProvider = value;
+            }
+        }
+
+        public IEventStreamCacheProvider CacheProvider
+        {
+            get
+            {
+                return _cacheProvider ?? (_cacheProvider = new InMemoryEventStreamCacheProvider());
+            }
+            set
+            {
+                _cacheProvider = value;
             }
         }
     }

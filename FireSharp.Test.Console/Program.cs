@@ -4,7 +4,6 @@ using System.Configuration;
 using System.IO;
 
 using FireSharp.Config;
-using FireSharp.EventStreaming;
 using FireSharp.Interfaces;
 using FireSharp.Security;
 using FireSharp.Tests.Logging;
@@ -93,7 +92,7 @@ namespace FireSharp.Test.Console
 
         private static async void EntityEventStreaming()
         {
-            await _client.MonitorEntityListAsync(
+            await _client.MonitorEntityListAsync<Person>(
                 "persons",
                 ((sender, key, entity) =>
                     {
@@ -111,7 +110,6 @@ namespace FireSharp.Test.Console
                     {
                         System.Console.WriteLine($"---- REMOVED ----\n {key} \n----\n {removed} \n----\n");
                     },
-                new InMemoryEntityResponseCache<Person>(),
                 QueryBuilder.New().OrderBy("dest").EqualTo("Home")).ConfigureAwait(false);
         }
 
@@ -121,14 +119,14 @@ namespace FireSharp.Test.Console
 
             await _client.OnAsync("chat",
                 async (sender, args, context) =>
-                {
-                    System.Console.WriteLine(args.Data + "-> 1\n");
-                    await _client.PushAsync("chat/", new
                     {
-                        name = "someone",
-                        text = "Console 1:" + DateTime.Now.ToString("f")
-                    });
-                },
+                        System.Console.WriteLine(args.Data + "-> 1\n");
+                        await _client.PushAsync("chat/", new
+                                                             {
+                                                                 name = "someone",
+                                                                 text = "Console 1:" + DateTime.Now.ToString("f")
+                                                             });
+                    },
                 (sender, args, context) => { System.Console.WriteLine(args.Data); },
                 (sender, args, context) => { System.Console.WriteLine(args.Path); });
 

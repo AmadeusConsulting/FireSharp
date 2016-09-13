@@ -15,5 +15,7 @@ namespace FireSharp.Interfaces
         ISerializer Serializer { get; set; } 
         ILogManager LogManager { get; set; }
         IHttpClientProvider HttpClientProvider { get; set; }
+
+        IEventStreamCacheProvider CacheProvider { get; set; }
     }
 }

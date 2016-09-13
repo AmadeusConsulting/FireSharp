@@ -59,7 +59,7 @@ namespace FireSharp.Response
                 case "put":
                 case "patch":
                     using (var dataReader = new JsonTextReader(new StringReader(dataJson)))
-                    {
+                    { 
                         if (eventName == "put")
                         {
                             Cache.AddOrUpdate(path, dataReader);

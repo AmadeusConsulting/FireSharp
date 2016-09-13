@@ -10,7 +10,7 @@ namespace FireSharp.Interfaces
         Task<FirebaseResponse> GetAsync(string path);
         Task<FirebaseResponse> GetAsync(string path, QueryBuilder queryBuilder);
 
-        Task<EventRootResponse<T>> OnChangeGetAsync<T>(string path, ValueRootAddedEventHandler<T> added = null);
+        Task<IEventStreamResponse> OnChangeGetAsync<T>(string path, ValueRootAddedEventHandler<T> added = null);
         Task<SetResponse> SetAsync<T>(string path, T data);
         Task<PushResponse> PushAsync<T>(string path, T data);
         Task<FirebaseResponse> DeleteAsync(string path);
@@ -28,23 +28,23 @@ namespace FireSharp.Interfaces
         FirebaseResponse ChangePassword(string email, string oldPassword, string newPassword);
 
         [Obsolete("This method is obsolete use OnAsync instead.")]
-        Task<EventStreamResponse> ListenAsync(string path,
+        Task<IEventStreamResponse> ListenAsync(string path,
             ValueAddedEventHandler added = null,
             ValueChangedEventHandler changed = null,
             ValueRemovedEventHandler removed = null);
 
-        Task<EventStreamResponse> OnAsync(string path,
+        Task<IEventStreamResponse> OnAsync(
+            string path,
             ValueAddedEventHandler added = null,
             ValueChangedEventHandler changed = null,
             ValueRemovedEventHandler removed = null,
             object context = null);
 
-        Task<EventEntityResponse<TEntity>> MonitorEntityListAsync<TEntity>(
+        Task<IEventStreamResponse> MonitorEntityListAsync<TEntity>(
             string path,
             EntityAddedEventHandler<TEntity> added,
             EntityChangedEventHandler<TEntity> changed,
             EntityRemovedEventHandler<TEntity> removed,
-            IEventStreamResponseCache<TEntity> cache,
             QueryBuilder queryBuilder = null);
 
         Task<dynamic> GetDatabaseRulesAsync();

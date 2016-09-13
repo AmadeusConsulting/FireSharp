@@ -54,6 +54,8 @@
   <ItemGroup>
     <Compile Include="Config\FirebaseConfig.cs" />
     <Compile Include="Extensions\DateTimeOffsetExtensions.cs" />
+    <Compile Include="IEventStreamCacheProvider.cs" />
+    <Compile Include="InMemoryEventStreamCacheProvider.cs" />
     <Compile Include="Interfaces\DefaulFireSharpHttpClientProvider.cs" />
     <Compile Include="Interfaces\IHttpClientProvider.cs" />
     <Compile Include="Logging\NoOpLogger.cs" />
@@ -88,6 +90,7 @@
     <Compile Include="Response\EventStreamResponse.cs" />
     <Compile Include="Response\EventStreamResponseBase.cs" />
     <Compile Include="Response\FirebaseResponse.cs" />
+    <Compile Include="Response\IEventStreamResponse.cs" />
     <Compile Include="Response\PushResponse.cs" />
     <Compile Include="Response\SetResponse.cs" />
     <Compile Include="Response\StreamingEventData.cs" />

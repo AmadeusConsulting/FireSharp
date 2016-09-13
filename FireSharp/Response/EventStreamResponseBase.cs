@@ -12,7 +12,7 @@ using Newtonsoft.Json;
 
 namespace FireSharp.Response
 {
-    public abstract class EventStreamResponseBase<T> : IDisposable
+    public abstract class EventStreamResponseBase<T> : IDisposable, IEventStreamResponse
     {
         #region Constants
 
@@ -88,6 +88,14 @@ namespace FireSharp.Response
 
         #endregion
 
+        #region Public Properties
+
+        public string Path { get; }
+
+        public bool IsStreaming => PollingTask.Status == TaskStatus.Running;
+
+        #endregion
+
         #region Properties
 
         protected IEventStreamResponseCache<T> Cache { get; }
@@ -95,8 +103,6 @@ namespace FireSharp.Response
         protected CancellationTokenSource CancellationTokenSource { get; }
 
         protected ILogManager LogManager { get; }
-
-        protected string Path { get; }
 
         private Task PollingTask { get; set; }
 
@@ -125,7 +131,6 @@ namespace FireSharp.Response
 
             if (disposing)
             {
-                Cache.Dispose();
                 CancellationTokenSource.Dispose();
             }
         }

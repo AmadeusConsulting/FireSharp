@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 
 namespace FireSharp.EventStreaming
 {
-    public interface IEventStreamResponseCache<T> : IDisposable
+    public interface IEventStreamResponseCache<T>
     {
         Task<T> Get(string path);
 

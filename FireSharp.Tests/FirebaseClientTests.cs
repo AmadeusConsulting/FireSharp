@@ -43,7 +43,7 @@ namespace FireSharp.Tests
                 StatusCode = HttpStatusCode.InternalServerError
             };
 
-            _firebaseClient = new FirebaseClient(_firebaseRequestManagerMock.Object, new NoOpLogManager());
+            _firebaseClient = new FirebaseClient(_firebaseRequestManagerMock.Object, new InMemoryEventStreamCacheProvider(), new NoOpLogManager());
         }
 
         [Test]

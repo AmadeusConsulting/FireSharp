@@ -6,7 +6,7 @@ using Provision.Providers.PortableMemoryCache;
 
 namespace FireSharp.EventStreaming
 {
-    public class InMemoryEntityResponseCache<T> : IEventStreamResponseCache<T>
+    public class InMemoryEntityResponseCache<T> : IEventStreamResponseCache<T>, IDisposable
     {
         private readonly ICacheHandler _cacheHandler;
 
