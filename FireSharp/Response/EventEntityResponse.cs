@@ -187,7 +187,7 @@ namespace FireSharp.Response
 
                     if (_changed != null)
                     {
-                        _changed(this, key, entity, oldValue);
+                        _changed(this, key, string.Empty, entity, oldValue);
                     }
                 }
             }
@@ -206,7 +206,9 @@ namespace FireSharp.Response
 
                     if (_changed != null)
                     {
-                        _changed(this, key, entity, oldValue);
+                        var pathString = GetPathString(pathCaptures);
+
+                        _changed(this, key, pathString, entity, oldValue);
                     }
                 }
                 else
@@ -251,10 +253,19 @@ namespace FireSharp.Response
 
                     if (_changed != null)
                     {
-                        _changed(this, key, entity, oldValue);
+                        var pathString = GetPathString(pathCaptures);
+
+                        _changed(this, key, pathString, entity, oldValue);
                     }
                 }
             }
+        }
+
+        private static string GetPathString(CaptureCollection pathCaptures)
+        {
+            return pathCaptures.Cast<Capture>()
+                .Aggregate(string.Empty, (str, pc) => $"{str}{(!string.IsNullOrEmpty(str) ? $"/{pc.Value}" : pc.Value)}")
+                .ToLowerInvariant();
         }
 
         #endregion

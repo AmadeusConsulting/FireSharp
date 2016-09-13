@@ -101,7 +101,7 @@ namespace FireSharp.Test.Console
                             System.Console.WriteLine($"---- ADDED ----\n {key} \n----\n {entity} \n----\n");
                         }
                     }),
-                (sender, key, newValue, oldValue) =>
+                (sender, key, path, newValue, oldValue) =>
                     {
                         System.Console.WriteLine(
                             $"---- CHANGED ----\n {key} \n Old Value \n ---- \n {oldValue} \n ---- New Value \n ---- \n {newValue}");

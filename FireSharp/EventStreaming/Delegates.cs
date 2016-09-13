@@ -6,7 +6,7 @@
 
     public delegate void EntityAddedEventHandler<in TEntity>(object sender, string key, TEntity entity);
 
-    public delegate void EntityChangedEventHandler<in TEntity>(object sender, string key, TEntity entity, TEntity oldValue);
+    public delegate void EntityChangedEventHandler<in TEntity>(object sender, string key, string path, TEntity entity, TEntity oldValue);
 
     public delegate void EntityRemovedEventHandler<in TEntity>(object sender, string key, TEntity deleted);
 
