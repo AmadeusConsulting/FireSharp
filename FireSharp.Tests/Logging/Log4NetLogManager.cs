@@ -1,4 +1,6 @@
-﻿using FireSharp.Logging;
+﻿using System;
+
+using FireSharp.Logging;
 
 using log4net;
 
@@ -18,6 +20,18 @@ namespace FireSharp.Tests.Logging
         public ILog GetLogger<T>(T clazz) where T : class
         {
             return GetLogger<T>();
+        }
+
+        public ILog GetLogger(string name)
+        {
+            if (string.IsNullOrEmpty(name))
+            {
+                throw new ArgumentNullException(nameof(name));
+            }
+
+            var logger = LogManager.GetLogger(name);
+
+            return new Log4NetLoggingAdapter(logger);
         }
     }
 }

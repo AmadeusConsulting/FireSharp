@@ -23,8 +23,6 @@ namespace FireSharp.Response
 
         private readonly IRequestManager _requestManager;
 
-        private readonly ILog _log;
-
         internal EventRootResponse(
             HttpResponseMessage httpResponse,
             ValueRootAddedEventHandler<T> added,
@@ -47,7 +45,6 @@ namespace FireSharp.Response
             _added = added;
             _requestManager = requestManager;
             _removed = removed;
-            _log = LogManager.GetLogger(this);
         }
 
         protected override async Task HandleReadLoopDataAsync(string eventName, string path, string dataJson)
@@ -61,10 +58,10 @@ namespace FireSharp.Response
             else
             {
                 // Every change on child, will get entire object again.
-                _log.Debug($"Getting {Path} to fetch updated object");
+                Log.Debug($"Getting {Path} to fetch updated object");
                 var request = await _requestManager.RequestAsync(HttpMethod.Get, Path);
                 var jsonStr = await request.Content.ReadAsStringAsync().ConfigureAwait(false);
-                _log.Debug($"Fetched upcated object: \n{jsonStr}");
+                Log.Debug($"Fetched upcated object: \n{jsonStr}");
 
                 _added(this, jsonStr.ReadAs<T>()); 
             }

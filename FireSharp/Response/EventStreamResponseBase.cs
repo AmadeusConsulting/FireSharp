@@ -31,12 +31,6 @@ namespace FireSharp.Response
 
         #endregion
 
-        #region Fields
-
-        private readonly ILog _log;
-
-        #endregion
-
         #region Constructors and Destructors
 
         protected EventStreamResponseBase(
@@ -70,7 +64,8 @@ namespace FireSharp.Response
             Path = path;
             CancellationTokenSource = cancellationTokenSource;
             LogManager = logManager;
-            _log = LogManager.GetLogger(this);
+
+            Log = LogManager.GetLogger($"{GetType().Name}[{Path}]");
 
             PollingTask = ReadLoop(httpResponseMessage, CancellationTokenSource.Token);
         }
@@ -90,9 +85,9 @@ namespace FireSharp.Response
 
         #region Public Properties
 
-        public string Path { get; }
-
         public bool IsStreaming => PollingTask.Status == TaskStatus.Running;
+
+        public string Path { get; }
 
         #endregion
 
@@ -101,6 +96,8 @@ namespace FireSharp.Response
         protected IEventStreamResponseCache<T> Cache { get; }
 
         protected CancellationTokenSource CancellationTokenSource { get; }
+
+        protected ILog Log { get; }
 
         protected ILogManager LogManager { get; }
 
@@ -139,7 +136,7 @@ namespace FireSharp.Response
 
         protected async Task ReadLoop(HttpResponseMessage httpResponse, CancellationToken token)
         {
-            _log.Debug($"Starting read loop for Entity Event Streaming for path {Path}");
+            Log.Debug($"Starting read loop for Entity Event Streaming for path {Path}");
 
             try
             {
@@ -158,7 +155,7 @@ namespace FireSharp.Response
 
                                     var read = await sr.ReadLineAsync().ConfigureAwait(false);
 
-                                    _log.Debug(read);
+                                    Log.Debug(read);
 
                                     if (read.StartsWith(EventPrefix))
                                     {
@@ -170,13 +167,13 @@ namespace FireSharp.Response
                                     {
                                         // ignore the data line for the keep-alive event (it's always null)
                                         eventName = null;
-                                        _log.Debug("Keep-Alive event detected -- skipping data line");
+                                        Log.Debug("Keep-Alive event detected -- skipping data line");
                                         continue;
                                     }
 
                                     if (eventName == StreamingEventType.Cancel)
                                     {
-                                        _log.Error("Cancel Event received from server. Exiting Read Loop!");
+                                        Log.Error("Cancel Event received from server. Exiting Read Loop!");
                                         OnEventStreamingTerminated(EventStreamingTerminationCause.ServerCancel);
                                         break;
                                     }
@@ -184,7 +181,7 @@ namespace FireSharp.Response
                                     if (eventName == StreamingEventType.AuthRevoked)
                                     {
                                         // our auth token is no longer valid
-                                        _log.Error("Firebase Auth Revoked!  Exiting Read Loop!");
+                                        Log.Error("Firebase Auth Revoked!  Exiting Read Loop!");
                                         OnEventStreamingTerminated(EventStreamingTerminationCause.AuthorizationRevoked);
                                         break;
                                     }
@@ -207,13 +204,13 @@ namespace FireSharp.Response
                                             }
                                             else
                                             {
-                                                _log.Error($"Bad Data Format! \n {read.Substring(DataPrefix.Length)}");
+                                                Log.Error($"Bad Data Format! \n {read.Substring(DataPrefix.Length)}");
                                             }
                                         }
                                     }
                                     catch (Exception ex)
                                     {
-                                        _log.Error($"Unhandled Exception Deserializing Data in Read Loop: {ex.Message}", ex);
+                                        Log.Error($"Unhandled Exception Deserializing Data in Read Loop: {ex.Message}", ex);
                                     }
 
                                     // start over

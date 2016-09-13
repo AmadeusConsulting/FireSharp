@@ -11,5 +11,10 @@
         {
             return new NoOpLogger();
         }
+
+        public ILog GetLogger(string name)
+        {
+            return new NoOpLogger();
+        }
     }
 }

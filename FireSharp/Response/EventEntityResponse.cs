@@ -39,8 +39,6 @@ namespace FireSharp.Response
 
         private readonly IRequestManager _requestManager;
 
-        private readonly ILog _log;
-
         #endregion
 
         #region Constructors and Destructors
@@ -67,7 +65,6 @@ namespace FireSharp.Response
             _changed = changed;
             _removed = removed;
             _requestManager = requestManager;
-            _log = LogManager.GetLogger(this);
         }
 
         #endregion
@@ -92,7 +89,7 @@ namespace FireSharp.Response
                     }
                     catch (Exception ex)
                     {
-                        _log.Error(
+                        Log.Error(
                             $"Error converting entity list value to {typeof(T).Name}.  The value was: \n{jtoken}",
                             ex);
                     }
