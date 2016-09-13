@@ -18,7 +18,6 @@ namespace FireSharp.Response
     public sealed class EventRootResponse<T> : EventStreamResponseBase<JsonReader>
     {
         private readonly ValueRootAddedEventHandler<T> _added;
-        private readonly string _path;
 
         private readonly ValueRemovedEventHandler _removed;
 
@@ -26,8 +25,15 @@ namespace FireSharp.Response
 
         private readonly ILog _log;
 
-        internal EventRootResponse(HttpResponseMessage httpResponse, ValueRootAddedEventHandler<T> added,
-            IRequestManager requestManager, string path, ILogManager logManager, ValueRemovedEventHandler removed = null)
+        internal EventRootResponse(
+            HttpResponseMessage httpResponse,
+            ValueRootAddedEventHandler<T> added,
+            IRequestManager requestManager,
+            string path,
+            ILogManager logManager,
+            CancellationTokenSource cancellationTokenSource,
+            ValueRemovedEventHandler removed = null)
+            : base(path, httpResponse, cancellationTokenSource, logManager, new TemporaryCache())
         {
             if (added == null)
             {
@@ -37,84 +43,31 @@ namespace FireSharp.Response
             {
                 throw new ArgumentNullException(nameof(requestManager));
             }
-            if (logManager == null)
-            {
-                throw new ArgumentNullException(nameof(logManager));
-            }
-            if (string.IsNullOrEmpty(path))
-            {
-                throw new ArgumentNullException(nameof(path));
-            }
-
+          
             _added = added;
             _requestManager = requestManager;
-            _path = path;
             _removed = removed;
-            _log = logManager.GetLogger(this);
-
-            CancellationTokenSource = new CancellationTokenSource();
-            PollingTask = ReadLoop(httpResponse, CancellationTokenSource.Token);
+            _log = LogManager.GetLogger(this);
         }
 
-        protected override async Task ReadLoop(HttpResponseMessage httpResponse, CancellationToken token)
+        protected override async Task HandleReadLoopDataAsync(string eventName, string path, string dataJson)
         {
-            await Task.Factory.StartNew(async () =>
+            var data = JsonConvert.DeserializeObject(dataJson);
+
+            if (data == null)
             {
-                using (httpResponse)
-                using (var content = await httpResponse.Content.ReadAsStreamAsync().ConfigureAwait(false))
-                using (var sr = new StreamReader(content))
-                {
-                    string eventName = null;
+                _removed?.Invoke(this, new ValueRemovedEventArgs(path), null);
+            }
+            else
+            {
+                // Every change on child, will get entire object again.
+                _log.Debug($"Getting {Path} to fetch updated object");
+                var request = await _requestManager.RequestAsync(HttpMethod.Get, Path);
+                var jsonStr = await request.Content.ReadAsStringAsync().ConfigureAwait(false);
+                _log.Debug($"Fetched upcated object: \n{jsonStr}");
 
-                    while (true)
-                    {
-                        CancellationTokenSource.Token.ThrowIfCancellationRequested();
-
-                        var read = await sr.ReadLineAsync().ConfigureAwait(false);
-
-                        Debug.WriteLine(read);
-
-                        if (read.StartsWith("event: "))
-                        {
-                            eventName = read.Substring(7);
-                            _log.Debug($"Received event '{eventName}'");
-                            continue;
-                        }
-
-                        if (read.StartsWith("data: "))
-                        {
-                            if (string.IsNullOrEmpty(eventName))
-                            {
-                                throw new InvalidOperationException(
-                                    "Payload data was received but an event did not preceed it.");
-                            }
-
-                            var json = read.Substring("data: ".Length);
-
-                            _log.Debug($"Received data {json}");
-
-                            var data = JsonConvert.DeserializeObject<IDictionary<string, object>>(json);
-
-                            if (data.ContainsKey("data") && data["data"] == null)
-                            {
-                                _removed?.Invoke(this, new ValueRemovedEventArgs(data["path"].ToString()), null);
-                                continue;
-                            }
-
-                            // Every change on child, will get entire object again.
-                            _log.Debug($"Getting {_path} to fetch updated object");
-                            var request = await _requestManager.RequestAsync(HttpMethod.Get, _path);
-                            var jsonStr = await request.Content.ReadAsStringAsync().ConfigureAwait(false);
-                            _log.Debug($"Fetched upcated object: \n{jsonStr}");
-
-                            _added(this, jsonStr.ReadAs<T>());
-                        }
-
-                        // start over
-                        eventName = null;
-                    }
-                }
-            }, token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+                _added(this, jsonStr.ReadAs<T>()); 
+            }
         }
     }
 }

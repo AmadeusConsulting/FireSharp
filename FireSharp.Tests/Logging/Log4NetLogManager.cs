@@ -11,7 +11,7 @@ namespace FireSharp.Tests.Logging
         public ILog GetLogger<T>()
         {
             log4net.ILog logger = LogManager.GetLogger(typeof(T));
-
+            
             return new Log4NetLoggingAdapter(logger);
         }
 

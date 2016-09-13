@@ -5,6 +5,7 @@ using FireSharp.Response;
 using System;
 using System.Net;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace FireSharp
@@ -381,23 +382,23 @@ namespace FireSharp
             ValueChangedEventHandler changed = null,
             ValueRemovedEventHandler removed = null)
         {
-            return new EventStreamResponse(await _requestManager.ListenAsync(path).ConfigureAwait(false), added, changed,
-                removed);
+            return new EventStreamResponse(path, await _requestManager.ListenAsync(path).ConfigureAwait(false), new CancellationTokenSource(), _config.LogManager, added,
+                changed, removed);
         }
 
         public async Task<EventRootResponse<T>> OnChangeGetAsync<T>(string path,
             ValueRootAddedEventHandler<T> added = null)
         {
             return new EventRootResponse<T>(await _requestManager.ListenAsync(path).ConfigureAwait(false), added,
-                _requestManager, path, _config.LogManager);
+                _requestManager, path, _config.LogManager, new CancellationTokenSource());
         }
 
         public async Task<EventStreamResponse> OnAsync(string path, ValueAddedEventHandler added = null,
             ValueChangedEventHandler changed = null,
             ValueRemovedEventHandler removed = null, object context = null)
         {
-            return new EventStreamResponse(await _requestManager.ListenAsync(path).ConfigureAwait(false), added, changed,
-                removed, context);
+            return new EventStreamResponse(path, await _requestManager.ListenAsync(path).ConfigureAwait(false), new CancellationTokenSource(), _config.LogManager, added,
+                changed, removed, context);
         }
 
         public async Task<EventEntityResponse<TEntity>> MonitorEntityListAsync<TEntity>(
@@ -416,7 +417,8 @@ namespace FireSharp
                 removed,
                 cache,
                 _requestManager,
-                _config);
+                _config.LogManager,
+                new CancellationTokenSource());
         }
 
         public async Task<EventStreamResponse> OnAsync(string path, QueryBuilder queryBuilder, ValueAddedEventHandler added = null,
@@ -424,7 +426,10 @@ namespace FireSharp
             ValueRemovedEventHandler removed = null, object context = null)
         {
             return new EventStreamResponse(
+                path,
                 await _requestManager.ListenAsync(path, queryBuilder).ConfigureAwait(false),
+                new CancellationTokenSource(),
+                _config.LogManager,
                 added,
                 changed,
                 removed,

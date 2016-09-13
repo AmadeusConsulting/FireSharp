@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using FireSharp.EventStreaming;
+using FireSharp.Logging;
 
 using Newtonsoft.Json;
 
@@ -16,15 +17,19 @@ namespace FireSharp.Response
         #region Constructors and Destructors
 
         internal EventStreamResponse(
-            HttpResponseMessage httpResponse, 
-            ValueAddedEventHandler added = null, 
-            ValueChangedEventHandler changed = null, 
-            ValueRemovedEventHandler removed = null, 
+            string path,
+            HttpResponseMessage httpResponse,
+            CancellationTokenSource cancellationTokenSource,
+            ILogManager logManager,
+            ValueAddedEventHandler added = null,
+            ValueChangedEventHandler changed = null,
+            ValueRemovedEventHandler removed = null,
             object context = null)
+            : base(path, httpResponse, cancellationTokenSource, logManager, new TemporaryCache())
         {
             CancellationTokenSource = new CancellationTokenSource();
 
-            var cache = new TemporaryCache();
+            var cache = (TemporaryCache)Cache;
 
             if (added != null)
             {
@@ -45,84 +50,32 @@ namespace FireSharp.Response
             {
                 cache.Context = context;
             }
-
-            Cache = cache;
-            PollingTask = ReadLoop(httpResponse, CancellationTokenSource.Token);
         }
 
         #endregion
 
-        #region Methods
-
-        protected override async Task ReadLoop(HttpResponseMessage httpResponse, CancellationToken token)
-        {
-            await Task.Factory.StartNew(
-                async () =>
-                    {
-                        using (httpResponse)
-                        using (var content = await httpResponse.Content.ReadAsStreamAsync())
-                        using (var sr = new StreamReader(content))
-                        {
-                            string eventName = null;
-
-                            while (true)
-                            {
-                                token.ThrowIfCancellationRequested();
-
-                                var read = await sr.ReadLineAsync();
-
-                                Debug.WriteLine(read);
-
-                                if (read.StartsWith("event: "))
-                                {
-                                    eventName = read.Substring(7);
-                                    continue;
-                                }
-
-                                if (read.StartsWith("data: "))
-                                {
-                                    if (string.IsNullOrEmpty(eventName))
-                                    {
-                                        throw new InvalidOperationException("Payload data was received but an event did not preceed it.");
-                                    }
-
-                                    Update(eventName, read.Substring(6));
-                                }
-
-                                // start over
-                                eventName = null;
-                            }
-                        }
-                    }, 
-                TaskCreationOptions.LongRunning);
-        }
-
-        private void Update(string eventName, string p)
+        protected override Task HandleReadLoopDataAsync(string eventName, string path, string dataJson)
         {
             switch (eventName)
             {
                 case "put":
                 case "patch":
-                    using (var reader = new JsonTextReader(new StringReader(p)))
+                    using (var dataReader = new JsonTextReader(new StringReader(dataJson)))
                     {
-                        ReadToNamedPropertyValue(reader, "path");
-                        reader.Read();
-                        var path = reader.Value.ToString();
-
                         if (eventName == "put")
                         {
-                            Cache.AddOrUpdate(path, ReadToNamedPropertyValue(reader, "data"));
+                            Cache.AddOrUpdate(path, dataReader);
                         }
                         else
                         {
-                            Cache.AddOrUpdate(path, ReadToNamedPropertyValue(reader, "data"));
+                            Cache.AddOrUpdate(path, dataReader);
                         }
                     }
 
                     break;
             }
-        }
 
-        #endregion
+            return Task.FromResult(0);
+        }
     }
 }

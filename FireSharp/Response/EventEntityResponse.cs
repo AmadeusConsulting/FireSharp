@@ -39,8 +39,6 @@ namespace FireSharp.Response
 
         private readonly IRequestManager _requestManager;
 
-        private readonly IFirebaseConfig _config;
-
         private readonly ILog _log;
 
         #endregion
@@ -48,155 +46,64 @@ namespace FireSharp.Response
         #region Constructors and Destructors
 
         internal EventEntityResponse(
-            HttpResponseMessage httpResponse, 
-            string basePath, 
-            EntityAddedEventHandler<T> added, 
-            EntityChangedEventHandler<T> changed, 
-            EntityRemovedEventHandler<T> removed, 
-            IEventStreamResponseCache<T> cache, 
+            HttpResponseMessage httpResponse,
+            string basePath,
+            EntityAddedEventHandler<T> added,
+            EntityChangedEventHandler<T> changed,
+            EntityRemovedEventHandler<T> removed,
+            IEventStreamResponseCache<T> cache,
             IRequestManager requestManager,
-            IFirebaseConfig config)
+            ILogManager logManager,
+            CancellationTokenSource cancellationTokenSource)
+            : base(basePath, httpResponse, cancellationTokenSource, logManager, cache)
         {
-            if (cache == null)
-            {
-                throw new ArgumentNullException(nameof(cache));
-            }
-
             if (requestManager == null)
             {
                 throw new ArgumentNullException(nameof(requestManager));
             }
-
-            Cache = cache;
+            
             _basePath = basePath ?? string.Empty;
             _added = added;
             _changed = changed;
             _removed = removed;
             _requestManager = requestManager;
-            _config = config;
-            _log = config.LogManager.GetLogger(this);
-
-            CancellationTokenSource = new CancellationTokenSource();
-            PollingTask = ReadLoop(httpResponse, CancellationTokenSource.Token);
+            _log = LogManager.GetLogger(this);
         }
 
         #endregion
 
         #region Methods
 
-        protected override async Task ReadLoop(HttpResponseMessage httpResponse, CancellationToken token)
+        protected override async Task HandleReadLoopDataAsync(string eventName, string path, string dataJson)
         {
-            _log.Debug($"Starting read loop for Entity Event Streaming for path {_basePath}");
-
-            await Task.Factory.StartNew(
-                async () =>
+            if (path == "/" && _added != null)
+            {
+                // this is an addition of multiple entities, which occurs 
+                // when first listening to a path with existing entites
+                var entityDict = dataJson.ReadAs<Dictionary<string, JToken>>();
+                foreach (var key in entityDict.Keys)
+                {
+                    var jtoken = entityDict[key];
+                    try
                     {
-                        using (httpResponse)
-                        using (var content = await httpResponse.Content.ReadAsStreamAsync().ConfigureAwait(false))
-                        using (var sr = new StreamReader(content))
-                        {
-                            string eventName = null;
-
-                            while (true)
-                            {
-                                CancellationTokenSource.Token.ThrowIfCancellationRequested();
-
-                                var read = await sr.ReadLineAsync().ConfigureAwait(false);
-
-                                _log.Debug(read);
-
-                                if (read.StartsWith(EventPrefix))
-                                {
-                                    eventName = read.Substring(EventPrefix.Length);
-                                    continue;
-                                }
-
-                                if (eventName == StreamingEventType.KeepAlive)
-                                {
-                                    // ignore the data line for the keep-alive event (it's always null)
-                                    eventName = null;
-                                    _log.Debug("Keep-Alive event detected -- skipping data line");
-                                    continue;
-                                }
-
-                                if (eventName == StreamingEventType.Cancel)
-                                {
-                                    // security rules have changed such that we no longer have read access to the requested location to be revoked
-                                    // TODO: throw an exception that can be handled upstream
-                                    _log.Error("Cancel Event received from server. Exiting Read Loop!");
-                                    break;
-                                }
-
-                                if (eventName == StreamingEventType.AuthRevoked)
-                                {
-                                    // our auth token is no longer valid
-                                    // TODO: throw an exception that can be handled upstream
-                                    _log.Error("Firebase Auth Revoked!  Exiting Read Loop!");
-                                    break;
-                                }
-
-                                try
-                                {
-                                    if (read.StartsWith(DataPrefix))
-                                    {
-                                        if (string.IsNullOrEmpty(eventName))
-                                        {
-                                            throw new InvalidOperationException("Payload data was received but an event did not preceed it.");
-                                        }
-
-                                        var match = DataRegex.Match(read.Substring(DataPrefix.Length));
-                                        if (match.Success)
-                                        {
-                                            var path = match.Groups["Path"].Value;
-                                            var dataJson = match.Groups["Data"].Value;
-                                            if (path == "/" && _added != null)
-                                            {
-                                                // this is an addition of multiple entities, which occurs 
-                                                // when first listening to a path with existing entites
-                                                var entityDict = dataJson.ReadAs<Dictionary<string, JToken>>();
-                                                foreach (var key in entityDict.Keys)
-                                                {
-                                                    var jtoken = entityDict[key];
-                                                    try
-                                                    {
-                                                        var entity = jtoken.ToObject<T>();
-                                                        await Cache.AddOrUpdate(key, entity);
-                                                        _added(this, key, entity);
-                                                    }
-                                                    catch (Exception ex)
-                                                    {
-                                                        _log.Error(
-                                                            $"Error converting entity list value to {typeof(T).Name}.  The value was: \n{jtoken}",
-                                                            ex);
-                                                    }
-                                                }
-                                            }
-                                            else
-                                            {
-                                                await HandleEntityUpdate(path, eventName, dataJson);
-                                            }
-                                        }
-                                        else
-                                        {
-                                            _log.Error($"Bad Data Format! \n {read.Substring(DataPrefix.Length)}");
-                                        }
-                                    }
-                                }
-                                catch (Exception ex)
-                                {
-                                    _log.Error($"Unhandled Exception in Read Loop: {ex.Message}", ex);
-                                }
-
-                                // start over
-                                eventName = null;
-                            }
-                        }
-                    }, 
-                token, 
-                TaskCreationOptions.LongRunning, 
-                TaskScheduler.Default);
+                        var entity = jtoken.ToObject<T>();
+                        await Cache.AddOrUpdate(key, entity);
+                        _added(this, key, entity);
+                    }
+                    catch (Exception ex)
+                    {
+                        _log.Error(
+                            $"Error converting entity list value to {typeof(T).Name}.  The value was: \n{jtoken}",
+                            ex);
+                    }
+                }
+            }
+            else
+            {
+                await HandleEntityUpdate(path, eventName, dataJson);
+            }
         }
-
+        
         private static void WriteElement(JsonWriter writer, PathElement elem, string finalValue)
         {
             writer.WriteStartObject();
