@@ -14,7 +14,7 @@ namespace FireSharp.Serialization.ServiceStack
             return JsonSerializer.DeserializeFromString<T>(json);
         }
 
-        public string Serialize<T>(T value)
+        public string Serialize<T>(T value, bool prettyPrint = false)
         {
             return JsonSerializer.SerializeToString(value);
         }

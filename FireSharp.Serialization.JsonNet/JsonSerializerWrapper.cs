@@ -10,9 +10,9 @@ namespace FireSharp.Serialization.JsonNet
             return JsonConvert.DeserializeObject<T>(json);
         }
 
-        public string Serialize<T>(T value)
+        public string Serialize<T>(T value, bool prettyPrint = false)
         {
-            return JsonConvert.SerializeObject(value);
+            return JsonConvert.SerializeObject(value, prettyPrint ? Formatting.Indented : Formatting.None);
         }
     }
 }

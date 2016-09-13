@@ -43,17 +43,35 @@ namespace FireSharp.Tests
                 }
 
                 UniquePathId = SetUpUniqueFirebaseUrlPath();
-                FirebaseUrlWithoutSlash = FirebaseUrl.Substring(0, FirebaseUrl.Length - 1);
-
+                
                 Config = new FirebaseConfig
                 {
                     AuthSecret = FirebaseSecret,
-                    BasePath = FirebaseUrl,
+                    BasePath = $"{FirebaseUrl}{UniquePathId}/",
                     LogManager = new Log4NetLogManager()
                 };
 
+                FirebaseUrlWithoutSlash = Config.BasePath.Substring(0, Config.BasePath.Length - 1);
+
                 FirebaseClient = new FirebaseClient(Config); //Uses Newtonsoft.Json Json Serializer 
+
+                SetupFirebaseRules();
             }
+        }
+
+        [TestFixtureTearDown]
+        public void FixtureTearDown()
+        {
+            TearDownFirebaseRules();
+        }
+
+        protected virtual void SetupFirebaseRules()
+        {
+            
+        }
+
+        protected virtual void TearDownFirebaseRules()
+        {
         }
 
         protected virtual string SetUpUniqueFirebaseUrlPath()
@@ -61,9 +79,7 @@ namespace FireSharp.Tests
             if (!string.IsNullOrEmpty(FirebaseUrl))
             {
                 var uniqueId = Guid.NewGuid().ToString("N");
-
-                FirebaseUrl = $"{FirebaseUrl}{uniqueId}/";
-
+                
                 return uniqueId;
             }
             return string.Empty;

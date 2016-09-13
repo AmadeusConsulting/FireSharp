@@ -46,5 +46,9 @@ namespace FireSharp.Interfaces
             EntityRemovedEventHandler<TEntity> removed,
             IEventStreamResponseCache<TEntity> cache,
             QueryBuilder queryBuilder = null);
+
+        Task<dynamic> GetDatabaseRulesAsync();
+
+        Task<SetResponse> SetDatabaseRulesAsync(dynamic rules);
     }
 }

@@ -49,7 +49,7 @@ namespace FireSharp.Tests
         public async Task DeleteAsync()
         {
             _firebaseRequestManagerMock.Setup(firebaseRequestManager =>
-                firebaseRequestManager.RequestAsync(HttpMethod.Delete, "todos", (object) null))
+                firebaseRequestManager.RequestAsync(HttpMethod.Delete, "todos", (object) null, false))
                 .Returns(Task.FromResult(_expectedResponse));
 
             var response = await _firebaseClient.DeleteAsync("todos");
@@ -60,7 +60,7 @@ namespace FireSharp.Tests
         public void DeleteAsyncFailure()
         {
             ReturnsExtensions.ReturnsAsync(_firebaseRequestManagerMock.Setup(
-                firebaseRequestManager => firebaseRequestManager.RequestAsync(HttpMethod.Delete, "todos", (object) null)),
+                firebaseRequestManager => firebaseRequestManager.RequestAsync(HttpMethod.Delete, "todos", (object) null, false)),
                 _failureResponse);
 
             Assert.Throws<FirebaseException>(async () => await _firebaseClient.DeleteAsync("todos"));
@@ -70,7 +70,7 @@ namespace FireSharp.Tests
         public async Task GetAsync()
         {
             _firebaseRequestManagerMock.Setup(firebaseRequestManager =>
-                firebaseRequestManager.RequestAsync(HttpMethod.Get, "todos", (object) null))
+                firebaseRequestManager.RequestAsync(HttpMethod.Get, "todos", (object) null, false))
                 .Returns(Task.FromResult(_expectedResponse));
 
             var firebaseResponse = await _firebaseClient.GetAsync("todos");
@@ -82,7 +82,7 @@ namespace FireSharp.Tests
         public void GetAsyncFailure()
         {
             ReturnsExtensions.ReturnsAsync(_firebaseRequestManagerMock.Setup(
-                firebaseRequestManager => firebaseRequestManager.RequestAsync(HttpMethod.Get, "todos", (object) null)),
+                firebaseRequestManager => firebaseRequestManager.RequestAsync(HttpMethod.Get, "todos", (object) null, false)),
                 _failureResponse);
 
             Assert.Throws<FirebaseException>(async () => await _firebaseClient.GetAsync("todos"));
@@ -92,7 +92,7 @@ namespace FireSharp.Tests
         public void GetFailure()
         {
             ReturnsExtensions.ReturnsAsync(_firebaseRequestManagerMock.Setup(
-                firebaseRequestManager => firebaseRequestManager.RequestAsync(HttpMethod.Get, "todos", (object) null)),
+                firebaseRequestManager => firebaseRequestManager.RequestAsync(HttpMethod.Get, "todos", (object) null, false)),
                 _failureResponse);
 
             Assert.Throws<FirebaseException>(() => _firebaseClient.Get("todos"));
@@ -102,7 +102,7 @@ namespace FireSharp.Tests
         public async void PushAsync()
         {
             _firebaseRequestManagerMock.Setup(
-                firebaseRequestManager => firebaseRequestManager.RequestAsync(HttpMethod.Post, "todos", _expected))
+                firebaseRequestManager => firebaseRequestManager.RequestAsync(HttpMethod.Post, "todos", _expected, false))
                 .Returns(Task.FromResult(_expectedResponse));
 
             var response = await _firebaseClient.PushAsync("todos", _expected);
@@ -114,7 +114,7 @@ namespace FireSharp.Tests
         public void PushAsyncFailure()
         {
             ReturnsExtensions.ReturnsAsync(_firebaseRequestManagerMock.Setup(
-                firebaseRequestManager => firebaseRequestManager.RequestAsync(HttpMethod.Post, "todos", _expected)),
+                firebaseRequestManager => firebaseRequestManager.RequestAsync(HttpMethod.Post, "todos", _expected, false)),
                 _failureResponse);
 
             Assert.Throws<FirebaseException>(async () => await _firebaseClient.PushAsync("todos", _expected));
@@ -124,7 +124,7 @@ namespace FireSharp.Tests
         public async void SetAsync()
         {
             _firebaseRequestManagerMock.Setup(
-                firebaseRequestManager => firebaseRequestManager.RequestAsync(HttpMethod.Put, "todos", _expected))
+                firebaseRequestManager => firebaseRequestManager.RequestAsync(HttpMethod.Put, "todos", _expected, false))
                 .Returns(Task.FromResult(_expectedResponse));
 
             var response = await _firebaseClient.SetAsync("todos", _expected);
@@ -136,7 +136,7 @@ namespace FireSharp.Tests
         public void SetAsyncFailure()
         {
             ReturnsExtensions.ReturnsAsync(_firebaseRequestManagerMock.Setup(
-                firebaseRequestManager => firebaseRequestManager.RequestAsync(HttpMethod.Put, "todos", _expected)),
+                firebaseRequestManager => firebaseRequestManager.RequestAsync(HttpMethod.Put, "todos", _expected, false)),
                 _failureResponse);
 
             Assert.Throws<FirebaseException>(async () => await _firebaseClient.SetAsync("todos", _expected));
@@ -146,7 +146,7 @@ namespace FireSharp.Tests
         public async Task UpdateAsync()
         {
             _firebaseRequestManagerMock.Setup(
-                firebaseRequestManager => firebaseRequestManager.RequestAsync(RequestManager.Patch, "todos", _expected))
+                firebaseRequestManager => firebaseRequestManager.RequestAsync(RequestManager.Patch, "todos", _expected, false))
                 .Returns(Task.FromResult(_expectedResponse));
 
             var response = await _firebaseClient.UpdateAsync("todos", _expected);
@@ -158,7 +158,7 @@ namespace FireSharp.Tests
         public void UpdateAsyncFailure()
         {
             ReturnsExtensions.ReturnsAsync(_firebaseRequestManagerMock.Setup(
-                firebaseRequestManager => firebaseRequestManager.RequestAsync(RequestManager.Patch, "todos", _expected)),
+                firebaseRequestManager => firebaseRequestManager.RequestAsync(RequestManager.Patch, "todos", _expected, false)),
                 _failureResponse);
 
             Assert.Throws<FirebaseException>(async () => await _firebaseClient.UpdateAsync("todos", _expected));

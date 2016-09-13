@@ -3,15 +3,20 @@ using FireSharp.Exceptions;
 using FireSharp.Interfaces;
 using FireSharp.Response;
 using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 
+using FireSharp.Extensions;
+
 namespace FireSharp
 {
     public class FirebaseClient : IFirebaseClient, IDisposable
     {
+        private const string DatabaseRulesPath = ".settings/rules";
+
         private readonly IFirebaseConfig _config;
 
         private readonly Action<HttpStatusCode, string> _defaultErrorHandler = (statusCode, body) =>
@@ -419,6 +424,46 @@ namespace FireSharp
                 _requestManager,
                 _config.LogManager,
                 new CancellationTokenSource());
+        }
+
+        public async Task<dynamic> GetDatabaseRulesAsync()
+        {
+            try
+            {
+                using (var response = await _requestManager.RequestAsync(HttpMethod.Get, DatabaseRulesPath).ConfigureAwait(false))
+                {
+                    var content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                    HandleIfErrorResponse(response.StatusCode, content);
+                    var rulesWrapper = content.ReadAs<dynamic>();
+                    return rulesWrapper.rules;
+                }
+            }
+            catch (HttpRequestException ex)
+            {
+                throw new FirebaseException(ex);
+            }
+        }
+
+        public async Task<SetResponse> SetDatabaseRulesAsync(dynamic rules)
+        {
+            try
+            {
+                var response = await _requestManager.RequestAsync(
+                    HttpMethod.Put,
+                    DatabaseRulesPath,
+                    new Dictionary<string, object>
+                        {
+                            { "rules", rules }
+                        },
+                    formatPayload: true);
+                var content = response.Content.ReadAsStringAsync().Result;
+                HandleIfErrorResponse(response.StatusCode, content);
+                return new SetResponse(content, response.StatusCode);
+            }
+            catch (HttpRequestException ex)
+            {
+                throw new FirebaseException(ex);
+            }
         }
 
         public async Task<EventStreamResponse> OnAsync(string path, QueryBuilder queryBuilder, ValueAddedEventHandler added = null,

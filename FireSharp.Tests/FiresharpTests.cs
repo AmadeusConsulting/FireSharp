@@ -7,9 +7,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
 using System.Net.Http;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -20,8 +18,6 @@ namespace FireSharp.Tests
 {
     public class FiresharpTests : FiresharpTestsBase
     {
-        private string _rulesUrl;
-
         [SetUp]
         protected override void FinalizeSetUp()
         {
@@ -33,88 +29,58 @@ namespace FireSharp.Tests
             Task.WhenAll(task1, task2).Wait();
         }
 
-        protected override string SetUpUniqueFirebaseUrlPath()
+        protected override void SetupFirebaseRules()
         {
-            var httpClient = new HttpClient();
+            base.SetupFirebaseRules();
 
-            _rulesUrl = $"{FirebaseUrl}.settings/rules.json?auth={FirebaseSecret}";
-
-            string uniqueId = base.SetUpUniqueFirebaseUrlPath();
-
-            var rules = GetFirebaseRules(_rulesUrl, httpClient);
-
-            rules[uniqueId] = new JObject();
-            var uniqueIdRules = (JObject)rules[uniqueId];
-            uniqueIdRules["todos"] = new JObject(
-                new JObject
-                    {
-                        {
-                            "get", new JObject(
-                            new JObject
-                                {
-                                    {
-                                        "pushAsync", new JObject
-                                                         {
-                                                             { ".indexOn", "priority" }
-                                                         }
-                                    }
-                                })
-                        }
-                    });
-           
-            
-            SetFirebaseRules(rules, _rulesUrl, httpClient);
-
-            return uniqueId;
-        }
-
-        private static void SetFirebaseRules(JObject rules, string rulesUrl, HttpClient httpClient)
-        {
-            var rulesWrapper = new JObject
-                                   {
-                                       ["rules"] = rules
-                                   };
-
-            var rulesUpdateRequest = new HttpRequestMessage(HttpMethod.Put, rulesUrl)
-                                         {
-                                             Content = new StringContent(JsonConvert.SerializeObject(rulesWrapper), Encoding.UTF8, "application/json")
-                                         };
-
-            var updateRulesResponse = httpClient.SendAsync(rulesUpdateRequest).Result;
-
-            if (updateRulesResponse.StatusCode != HttpStatusCode.OK)
+            if (FirebaseClient != null)
             {
-                throw new Exception(
-                    $"Response status code for updating rules did not indicate success: {updateRulesResponse.StatusCode}");
+                var rulesClient = new FirebaseClient(new FirebaseConfig {BasePath = FirebaseUrl, AuthSecret = FirebaseSecret });
+
+                var rules = rulesClient.GetDatabaseRulesAsync().Result;
+
+                rules[UniquePathId] = new JObject();
+                var uniqueIdRules = (JObject)rules[UniquePathId];
+                uniqueIdRules["todos"] = new JObject(
+                    new JObject
+                        {
+                            {
+                                "get", new JObject(
+                                new JObject
+                                    {
+                                        {
+                                            "pushAsync", new JObject
+                                                             {
+                                                                 { ".indexOn", "priority" }
+                                                             }
+                                        }
+                                    })
+                            }
+                        });
+
+                rulesClient.SetDatabaseRulesAsync(rules).Wait();
+
+                Task.Delay(2000).Wait();
             }
         }
 
-        private JObject GetFirebaseRules(string rulesUrl, HttpClient httpClient)
+        protected override void TearDownFirebaseRules()
         {
-            var rulesGetRequest = new HttpRequestMessage(HttpMethod.Get, rulesUrl);
+            base.TearDownFirebaseRules();
 
-            var rulesResponse = httpClient.SendAsync(rulesGetRequest).Result;
+            if (FirebaseClient != null)
+            {
+                var rulesClient = new FirebaseClient(new FirebaseConfig { BasePath = FirebaseUrl, AuthSecret = FirebaseSecret });
+                var rules = rulesClient.GetDatabaseRulesAsync().Result;
 
-            var rulesResponseContent = JsonConvert.DeserializeObject<Dictionary<string, object>>(rulesResponse.Content.ReadAsStringAsync().Result);
+                rules.Remove(UniquePathId);
 
-            var rules = (JObject)rulesResponseContent["rules"];
-            
-            return rules;
-        }
+                var task1 = FirebaseClient.DeleteAsync("todos");
+                var task2 = FirebaseClient.DeleteAsync("fakepath");
+                var task3 = rulesClient.SetDatabaseRulesAsync(rules);
 
-        [TearDown]
-        protected override void FinalizeTearDown()
-        {
-            var httpClient = new HttpClient();
-
-            var rules = GetFirebaseRules(_rulesUrl, httpClient);
-
-            rules.Remove(UniquePathId);
-
-            var task1 = FirebaseClient.DeleteAsync("todos");
-            var task2 = FirebaseClient.DeleteAsync("fakepath");
-
-            Task.WhenAll(task1, task2).Wait();
+                Task.WhenAll(task1, task2, task3).Wait();
+            }
         }
 
         [Test, Category("INTEGRATION")]

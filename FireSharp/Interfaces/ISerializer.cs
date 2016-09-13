@@ -3,6 +3,6 @@ namespace FireSharp.Interfaces
     public interface ISerializer
     {
         T Deserialize<T>(string json);
-        string Serialize<T>(T value);
+        string Serialize<T>(T value, bool prettyPrint = false);
     }
 }

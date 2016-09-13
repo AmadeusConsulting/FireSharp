@@ -35,27 +35,24 @@ namespace FireSharp.Response
 
         #region Fields
 
-        protected ILogManager LogManager { get; }
-
-        protected string Path { get; }
-
-        private ILog _log;
+        private readonly ILog _log;
 
         #endregion
 
         #region Constructors and Destructors
 
         protected EventStreamResponseBase(
-            string path,
-            HttpResponseMessage httpResponseMessage,
-            CancellationTokenSource cancellationTokenSource,
-            ILogManager logManager,
+            string path, 
+            HttpResponseMessage httpResponseMessage, 
+            CancellationTokenSource cancellationTokenSource, 
+            ILogManager logManager, 
             IEventStreamResponseCache<T> cache)
         {
             if (path == null)
             {
                 throw new ArgumentNullException(nameof(path));
             }
+
             if (httpResponseMessage == null)
             {
                 throw new ArgumentNullException(nameof(httpResponseMessage));
@@ -65,6 +62,7 @@ namespace FireSharp.Response
             {
                 throw new ArgumentNullException(nameof(logManager));
             }
+
             if (cache == null)
             {
                 throw new ArgumentNullException(nameof(cache));
@@ -91,6 +89,10 @@ namespace FireSharp.Response
         protected IEventStreamResponseCache<T> Cache { get; set; }
 
         protected CancellationTokenSource CancellationTokenSource { get; set; }
+
+        protected ILogManager LogManager { get; }
+
+        protected string Path { get; }
 
         protected Task PollingTask { get; set; }
 
@@ -208,7 +210,7 @@ namespace FireSharp.Response
                                 eventName = null;
                             }
                         }
-                    },
+                    }, 
                 token, 
                 TaskCreationOptions.LongRunning, 
                 TaskScheduler.Default);

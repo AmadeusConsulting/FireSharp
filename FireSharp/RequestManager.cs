@@ -91,17 +91,17 @@ namespace FireSharp
             }
         }
 
-        public Task<HttpResponseMessage> RequestAsync(HttpMethod method, string path, object payload)
+        public Task<HttpResponseMessage> RequestAsync(HttpMethod method, string path, object payload = null, bool formatPayload = false)
         {
-            return RequestAsync(method, path, null, payload);
+            return RequestAsync(method, path, null, payload, formatPayload);
         }
 
-        public Task<HttpResponseMessage> RequestAsync(HttpMethod method, string path, QueryBuilder queryBuilder, object payload = null)
+        public Task<HttpResponseMessage> RequestAsync(HttpMethod method, string path, QueryBuilder queryBuilder, object payload = null, bool formatPayload = false)
         {
             try
             {
                 var uri = PrepareUri(path, queryBuilder);
-                var request = PrepareRequest(method, uri, payload);
+                var request = PrepareRequest(method, uri, payload, formatPayload);
 
                 return _httpClient.SendAsync(request, HttpCompletionOption.ResponseContentRead);
             }
@@ -138,13 +138,13 @@ namespace FireSharp
             return request;
         }
 
-        private HttpRequestMessage PrepareRequest(HttpMethod method, Uri uri, object payload)
+        private HttpRequestMessage PrepareRequest(HttpMethod method, Uri uri, object payload, bool prettyPrint = false)
         {
             var request = new HttpRequestMessage(method, uri);
 
             if (payload != null)
             {
-                var json = _serializer.Serialize(payload);
+                var json = _serializer.Serialize(payload, prettyPrint);
                 request.Content = new StringContent(json);
             }
 
