@@ -5,6 +5,7 @@ using Common.Testing.NUnit;
 using FireSharp.Exceptions;
 using FireSharp.Extensions;
 using FireSharp.Interfaces;
+using FireSharp.Logging;
 using FireSharp.Tests.Models;
 using Moq;
 using NUnit.Framework;
@@ -42,7 +43,7 @@ namespace FireSharp.Tests
                 StatusCode = HttpStatusCode.InternalServerError
             };
 
-            _firebaseClient = new FirebaseClient(_firebaseRequestManagerMock.Object, _config.Object);
+            _firebaseClient = new FirebaseClient(_firebaseRequestManagerMock.Object, new NoOpLogManager());
         }
 
         [Test]

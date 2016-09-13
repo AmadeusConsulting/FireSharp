@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using FireSharp.Extensions;
+using FireSharp.Logging;
 
 namespace FireSharp
 {
@@ -17,7 +18,7 @@ namespace FireSharp
     {
         private const string DatabaseRulesPath = ".settings/rules";
 
-        private readonly IFirebaseConfig _config;
+        private readonly ILogManager _logManager;
 
         private readonly Action<HttpStatusCode, string> _defaultErrorHandler = (statusCode, body) =>
         {
@@ -38,7 +39,7 @@ namespace FireSharp
                     config.LogManager,
                     authSecret: config.AuthSecret,
                     apiHost: config.Host),
-                config)
+                config.LogManager)
         {}
 
         ~FirebaseClient()
@@ -46,18 +47,18 @@ namespace FireSharp
             Dispose(false);
         }
 
-        public FirebaseClient(IRequestManager requestManager, IFirebaseConfig config)
+        public FirebaseClient(IRequestManager requestManager, ILogManager logManager)
         {
             if (requestManager == null)
             {
                 throw new ArgumentNullException(nameof(requestManager));
             }
-            if (config == null)
+            if (logManager == null)
             {
-                throw new ArgumentNullException(nameof(config));
+                throw new ArgumentNullException(nameof(logManager));
             }
             _requestManager = requestManager;
-            _config = config;
+            _logManager = logManager;
         }
 
         public void Dispose()
@@ -387,7 +388,7 @@ namespace FireSharp
             ValueChangedEventHandler changed = null,
             ValueRemovedEventHandler removed = null)
         {
-            return new EventStreamResponse(path, await _requestManager.ListenAsync(path).ConfigureAwait(false), new CancellationTokenSource(), _config.LogManager, added,
+            return new EventStreamResponse(path, await _requestManager.ListenAsync(path).ConfigureAwait(false), new CancellationTokenSource(), _logManager, added,
                 changed, removed);
         }
 
@@ -395,14 +396,14 @@ namespace FireSharp
             ValueRootAddedEventHandler<T> added = null)
         {
             return new EventRootResponse<T>(await _requestManager.ListenAsync(path).ConfigureAwait(false), added,
-                _requestManager, path, _config.LogManager, new CancellationTokenSource());
+                _requestManager, path, _logManager, new CancellationTokenSource());
         }
 
         public async Task<EventStreamResponse> OnAsync(string path, ValueAddedEventHandler added = null,
             ValueChangedEventHandler changed = null,
             ValueRemovedEventHandler removed = null, object context = null)
         {
-            return new EventStreamResponse(path, await _requestManager.ListenAsync(path).ConfigureAwait(false), new CancellationTokenSource(), _config.LogManager, added,
+            return new EventStreamResponse(path, await _requestManager.ListenAsync(path).ConfigureAwait(false), new CancellationTokenSource(), _logManager, added,
                 changed, removed, context);
         }
 
@@ -422,7 +423,7 @@ namespace FireSharp
                 removed,
                 cache,
                 _requestManager,
-                _config.LogManager,
+                _logManager,
                 new CancellationTokenSource());
         }
 
@@ -474,7 +475,7 @@ namespace FireSharp
                 path,
                 await _requestManager.ListenAsync(path, queryBuilder).ConfigureAwait(false),
                 new CancellationTokenSource(),
-                _config.LogManager,
+                _logManager,
                 added,
                 changed,
                 removed,

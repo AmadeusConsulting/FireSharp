@@ -27,8 +27,6 @@ namespace FireSharp.Response
             object context = null)
             : base(path, httpResponse, cancellationTokenSource, logManager, new TemporaryCache())
         {
-            CancellationTokenSource = new CancellationTokenSource();
-
             var cache = (TemporaryCache)Cache;
 
             if (added != null)

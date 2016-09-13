@@ -16,17 +16,15 @@ namespace FireSharp.Response
     {
         #region Constants
 
-        protected const string DataPrefix = "data: ";
+        private const string DataPrefix = "data: ";
 
-        protected const string EventKeepAlive = "keep-alive";
-
-        protected const string EventPrefix = "event: ";
+        private const string EventPrefix = "event: ";
 
         #endregion
 
         #region Static Fields
 
-        protected static readonly Regex DataRegex = new Regex(@"\{\s* <?# Start JSON Object>
+        private static readonly Regex DataRegex = new Regex(@"\{\s* <?# Start JSON Object>
                 ""path"":\s*""(?<Path>[^""]+)""\s*,\s* <?# Path Property with string value >
                 ""data"":\s*(?<Data>(\{.*\}|""(([^""]|(?<=\\)"")+)?""|\d+(\.\d+)?|false|true|null))\s* <?# data property with object, number, string, boolean, or null value >
               \} <?# End JSON Object >", RegexOptions.Singleline | RegexOptions.IgnorePatternWhitespace);
@@ -84,17 +82,23 @@ namespace FireSharp.Response
 
         #endregion
 
+        #region Public Events
+
+        public event EventHandler<EventStreamingTerminatedEventArgs> StreamingTerminated;
+
+        #endregion
+
         #region Properties
 
-        protected IEventStreamResponseCache<T> Cache { get; set; }
+        protected IEventStreamResponseCache<T> Cache { get; }
 
-        protected CancellationTokenSource CancellationTokenSource { get; set; }
+        protected CancellationTokenSource CancellationTokenSource { get; }
 
         protected ILogManager LogManager { get; }
 
         protected string Path { get; }
 
-        protected Task PollingTask { get; set; }
+        private Task PollingTask { get; set; }
 
         #endregion
 
@@ -132,88 +136,100 @@ namespace FireSharp.Response
         {
             _log.Debug($"Starting read loop for Entity Event Streaming for path {Path}");
 
-            await Task.Factory.StartNew(
-                async () =>
-                    {
-                        using (httpResponse)
-                        using (var content = await httpResponse.Content.ReadAsStreamAsync().ConfigureAwait(false))
-                        using (var sr = new StreamReader(content))
+            try
+            {
+                await Task.Factory.StartNew(
+                    async () =>
                         {
-                            string eventName = null;
-
-                            while (true)
+                            using (httpResponse)
+                            using (var content = await httpResponse.Content.ReadAsStreamAsync().ConfigureAwait(false))
+                            using (var sr = new StreamReader(content))
                             {
-                                CancellationTokenSource.Token.ThrowIfCancellationRequested();
+                                string eventName = null;
 
-                                var read = await sr.ReadLineAsync().ConfigureAwait(false);
-
-                                _log.Debug(read);
-
-                                if (read.StartsWith(EventPrefix))
+                                while (true)
                                 {
-                                    eventName = read.Substring(EventPrefix.Length);
-                                    continue;
-                                }
+                                    CancellationTokenSource.Token.ThrowIfCancellationRequested();
 
-                                if (eventName == StreamingEventType.KeepAlive)
-                                {
-                                    // ignore the data line for the keep-alive event (it's always null)
-                                    eventName = null;
-                                    _log.Debug("Keep-Alive event detected -- skipping data line");
-                                    continue;
-                                }
+                                    var read = await sr.ReadLineAsync().ConfigureAwait(false);
 
-                                if (eventName == StreamingEventType.Cancel)
-                                {
-                                    // security rules have changed such that we no longer have read access to the requested location to be revoked
-                                    // TODO: throw an exception that can be handled upstream
-                                    _log.Error("Cancel Event received from server. Exiting Read Loop!");
-                                    break;
-                                }
+                                    _log.Debug(read);
 
-                                if (eventName == StreamingEventType.AuthRevoked)
-                                {
-                                    // our auth token is no longer valid
-                                    // TODO: throw an exception that can be handled upstream
-                                    _log.Error("Firebase Auth Revoked!  Exiting Read Loop!");
-                                    break;
-                                }
-
-                                try
-                                {
-                                    if (read.StartsWith(DataPrefix))
+                                    if (read.StartsWith(EventPrefix))
                                     {
-                                        if (string.IsNullOrEmpty(eventName))
-                                        {
-                                            throw new InvalidOperationException("Payload data was received but an event did not preceed it.");
-                                        }
+                                        eventName = read.Substring(EventPrefix.Length);
+                                        continue;
+                                    }
 
-                                        var match = DataRegex.Match(read.Substring(DataPrefix.Length));
-                                        if (match.Success)
+                                    if (eventName == StreamingEventType.KeepAlive)
+                                    {
+                                        // ignore the data line for the keep-alive event (it's always null)
+                                        eventName = null;
+                                        _log.Debug("Keep-Alive event detected -- skipping data line");
+                                        continue;
+                                    }
+
+                                    if (eventName == StreamingEventType.Cancel)
+                                    {
+                                        _log.Error("Cancel Event received from server. Exiting Read Loop!");
+                                        OnEventStreamingTerminated(EventStreamingTerminationCause.ServerCancel);
+                                        break;
+                                    }
+
+                                    if (eventName == StreamingEventType.AuthRevoked)
+                                    {
+                                        // our auth token is no longer valid
+                                        _log.Error("Firebase Auth Revoked!  Exiting Read Loop!");
+                                        OnEventStreamingTerminated(EventStreamingTerminationCause.AuthorizationRevoked);
+                                        break;
+                                    }
+
+                                    try
+                                    {
+                                        if (read.StartsWith(DataPrefix))
                                         {
-                                            var path = match.Groups["Path"].Value;
-                                            var dataJson = match.Groups["Data"].Value;
-                                            await HandleReadLoopDataAsync(eventName, path, dataJson);
-                                        }
-                                        else
-                                        {
-                                            _log.Error($"Bad Data Format! \n {read.Substring(DataPrefix.Length)}");
+                                            if (string.IsNullOrEmpty(eventName))
+                                            {
+                                                throw new InvalidOperationException("Payload data was received but an event did not preceed it.");
+                                            }
+
+                                            var match = DataRegex.Match(read.Substring(DataPrefix.Length));
+                                            if (match.Success)
+                                            {
+                                                var path = match.Groups["Path"].Value;
+                                                var dataJson = match.Groups["Data"].Value;
+                                                await HandleReadLoopDataAsync(eventName, path, dataJson);
+                                            }
+                                            else
+                                            {
+                                                _log.Error($"Bad Data Format! \n {read.Substring(DataPrefix.Length)}");
+                                            }
                                         }
                                     }
-                                }
-                                catch (Exception ex)
-                                {
-                                    _log.Error($"Unhandled Exception Deserializing Data in Read Loop: {ex.Message}", ex);
-                                }
+                                    catch (Exception ex)
+                                    {
+                                        _log.Error($"Unhandled Exception Deserializing Data in Read Loop: {ex.Message}", ex);
+                                    }
 
-                                // start over
-                                eventName = null;
+                                    // start over
+                                    eventName = null;
+                                }
                             }
-                        }
-                    }, 
-                token, 
-                TaskCreationOptions.LongRunning, 
-                TaskScheduler.Default);
+                        }, 
+                    token, 
+                    TaskCreationOptions.LongRunning, 
+                    TaskScheduler.Default);
+            }
+            catch (Exception ex)
+            {
+                var isCanceled = ex is OperationCanceledException;
+
+                OnEventStreamingTerminated(
+                    isCanceled ? EventStreamingTerminationCause.StreamingCanceled : EventStreamingTerminationCause.UnhandledException, 
+                    ex);
+
+                throw;
+            }
         }
 
         protected JsonReader ReadToNamedPropertyValue(JsonReader reader, string property)
@@ -237,6 +253,11 @@ namespace FireSharp.Response
             }
 
             return reader;
+        }
+
+        private void OnEventStreamingTerminated(EventStreamingTerminationCause terminationCause, Exception exception = null)
+        {
+            StreamingTerminated?.Invoke(this, new EventStreamingTerminatedEventArgs(terminationCause, exception));
         }
 
         #endregion
