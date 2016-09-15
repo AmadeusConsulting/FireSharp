@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using FireSharp.EventStreaming;
 using FireSharp.Response;
@@ -21,6 +22,7 @@ namespace FireSharp.Interfaces
         PushResponse Push<T>(string path, T data);
         FirebaseResponse Delete(string path);
         FirebaseResponse Update<T>(string path, T data);
+
         FirebaseResponse CreateUser(string email, string password);
         FirebaseResponse ChangeEmail(string oldEmail, string password, string newEmail);
         FirebaseResponse RemoveUser(string email, string password);
@@ -47,8 +49,8 @@ namespace FireSharp.Interfaces
             EntityRemovedEventHandler<TEntity> removed,
             QueryBuilder queryBuilder = null);
 
-        Task<dynamic> GetDatabaseRulesAsync();
+        Task<IDatabaseRules> GetDatabaseRulesAsync();
 
-        Task<SetResponse> SetDatabaseRulesAsync(dynamic rules);
+        Task<SetResponse> SetDatabaseRulesAsync(IDictionary<string, object> rules);
     }
 }

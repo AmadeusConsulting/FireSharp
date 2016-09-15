@@ -12,6 +12,8 @@ using FireSharp.Interfaces;
 using FireSharp.Logging;
 using FireSharp.Response;
 
+using Newtonsoft.Json.Linq;
+
 namespace FireSharp
 {
     public class FirebaseClient : IFirebaseClient, IDisposable
@@ -266,7 +268,7 @@ namespace FireSharp
             }
         }
 
-        public async Task<dynamic> GetDatabaseRulesAsync()
+        public async Task<IDatabaseRules> GetDatabaseRulesAsync()
         {
             try
             {
@@ -274,8 +276,9 @@ namespace FireSharp
                 {
                     var content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
                     HandleIfErrorResponse(response.StatusCode, content);
-                    var rulesWrapper = content.ReadAs<dynamic>();
-                    return rulesWrapper.rules;
+                    var rules = content.ReadAs<JObject>();
+
+                    return new DatabaseRules(rules["rules"].ToObject<IDictionary<string, object>>());
                 }
             }
             catch (HttpRequestException ex)
@@ -476,7 +479,7 @@ namespace FireSharp
             }
         }
 
-        public async Task<SetResponse> SetDatabaseRulesAsync(dynamic rules)
+        public async Task<SetResponse> SetDatabaseRulesAsync(IDictionary<string, object> rules)
         {
             try
             {

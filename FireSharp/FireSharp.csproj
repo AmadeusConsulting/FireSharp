@@ -53,7 +53,10 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Config\FirebaseConfig.cs" />
+    <Compile Include="DatabaseRules.cs" />
+    <Compile Include="DatabaseRulesSerializer.cs" />
     <Compile Include="Extensions\DateTimeOffsetExtensions.cs" />
+    <Compile Include="IDatabaseRules.cs" />
     <Compile Include="IEventStreamCacheProvider.cs" />
     <Compile Include="InMemoryEventStreamCacheProvider.cs" />
     <Compile Include="Interfaces\DefaulFireSharpHttpClientProvider.cs" />

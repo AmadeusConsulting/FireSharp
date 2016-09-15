@@ -39,26 +39,13 @@ namespace FireSharp.Tests
 
                 var rules = rulesClient.GetDatabaseRulesAsync().Result;
 
-                rules[UniquePathId] = new JObject();
-                var uniqueIdRules = (JObject)rules[UniquePathId];
-                uniqueIdRules["todos"] = new JObject(
-                    new JObject
+                rules[UniquePathId]["todos"]["get"]["pushAsync"] = DatabaseRules.Create(
+                    new Dictionary<string, object>
                         {
-                            {
-                                "get", new JObject(
-                                new JObject
-                                    {
-                                        {
-                                            "pushAsync", new JObject
-                                                             {
-                                                                 { ".indexOn", "priority" }
-                                                             }
-                                        }
-                                    })
-                            }
+                            { ".indexOn", "priority" }
                         });
 
-                rulesClient.SetDatabaseRulesAsync(rules).Wait();
+                rulesClient.SetDatabaseRulesAsync(rules.Rules).Wait();
 
                 Task.Delay(2000).Wait();
             }
@@ -77,7 +64,7 @@ namespace FireSharp.Tests
 
                 var task1 = FirebaseClient.DeleteAsync("todos");
                 var task2 = FirebaseClient.DeleteAsync("fakepath");
-                var task3 = rulesClient.SetDatabaseRulesAsync(rules);
+                var task3 = rulesClient.SetDatabaseRulesAsync(rules.Rules);
 
                 Task.WhenAll(task1, task2, task3).Wait();
             }
