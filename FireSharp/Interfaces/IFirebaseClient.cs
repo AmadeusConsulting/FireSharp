@@ -49,7 +49,7 @@ namespace FireSharp.Interfaces
             EntityRemovedEventHandler<TEntity> removed,
             QueryBuilder queryBuilder = null);
 
-        Task<IDatabaseRules> GetDatabaseRulesAsync();
+        Task<DatabaseRules> GetDatabaseRulesAsync();
 
         Task<SetResponse> SetDatabaseRulesAsync(IDictionary<string, object> rules);
     }

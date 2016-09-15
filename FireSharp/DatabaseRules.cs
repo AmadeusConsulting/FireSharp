@@ -6,7 +6,7 @@ using Newtonsoft.Json;
 namespace FireSharp
 {
     [JsonConverter(typeof(DatabaseRulesSerializer))]
-    public class DatabaseRules : IDatabaseRules
+    public class DatabaseRules
     {
         #region Constructors and Destructors
 
@@ -25,7 +25,7 @@ namespace FireSharp
 
         #region Public Indexers
 
-        public IDatabaseRules this[string key]
+        public DatabaseRules this[string key]
         {
             get
             {
@@ -42,7 +42,7 @@ namespace FireSharp
 
         #region Public Methods and Operators
 
-        public static IDatabaseRules Create(IDictionary<string, object> rules)
+        public static DatabaseRules Create(IDictionary<string, dynamic> rules)
         {
             if (rules == null)
             {
@@ -50,6 +50,16 @@ namespace FireSharp
             }
 
             return new DatabaseRules(rules);
+        }
+
+        public static implicit operator DatabaseRules(Dictionary<string, object> dict)
+        {
+            if (dict == null)
+            {
+                return null;
+            }
+
+            return new DatabaseRules(dict);
         }
 
         public void Remove(string key)
@@ -61,23 +71,14 @@ namespace FireSharp
 
         #region Methods
 
-        private IDatabaseRules GetChild(string path)
+        private DatabaseRules GetChild(string key)
         {
-            var splitPath = path.Split('/');
-
-            var currentRule = Rules;
-
-            foreach (var elem in splitPath)
+            if (!Rules.ContainsKey(key))
             {
-                if (!currentRule.ContainsKey(elem))
-                {
-                    currentRule[elem] = new Dictionary<string, object>();
-                }
-
-                currentRule = (IDictionary<string, object>)currentRule[elem];
+                Rules[key] = new Dictionary<string, object>();
             }
 
-            return new DatabaseRules(currentRule);
+            return new DatabaseRules((IDictionary<string, object>)Rules[key]);
         }
 
         #endregion

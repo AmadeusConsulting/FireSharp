@@ -23,6 +23,11 @@ namespace FireSharp.Tests
         {
             base.FinalizeSetUp();
 
+            if (FirebaseClient == null)
+            {
+                Assert.Inconclusive();
+            }
+            
             var task1 = FirebaseClient.DeleteAsync("todos");
             var task2 = FirebaseClient.DeleteAsync("fakepath");
             
@@ -73,11 +78,6 @@ namespace FireSharp.Tests
         [Test, Category("INTEGRATION")]
         public void Delete()
         {
-            if (FirebaseClient == null)
-            {
-                Assert.Inconclusive();
-            }
-
             FirebaseClient.Push("todos/push", new Todo
             {
                 name = "Execute PUSH4GET",
@@ -91,11 +91,6 @@ namespace FireSharp.Tests
         [Test, Category("INTEGRATION"), Category("ASYNC")]
         public async Task DeleteAsync()
         {
-            if (FirebaseClient == null)
-            {
-                Assert.Inconclusive();
-            }
-
             await FirebaseClient.PushAsync("todos/pushAsync", new Todo
             {
                 name = "Execute PUSH4GET",
@@ -109,11 +104,6 @@ namespace FireSharp.Tests
         [Test, Category("INTEGRATION"), Category("SYNC")]
         public void Get()
         {
-            if (FirebaseClient == null)
-            {
-                Assert.Inconclusive();
-            }
-
             FirebaseClient.Push("todos/gettest/push", new Todo
             {
                 name = "Execute PUSH4GET",
@@ -131,11 +121,6 @@ namespace FireSharp.Tests
         [Test, Category("INTEGRATION"), Category("ASYNC")]
         public async Task GetAsync()
         {
-            if (FirebaseClient == null)
-            {
-                Assert.Inconclusive();
-            }
-
             await FirebaseClient.PushAsync("todos/get/pushAsync", new Todo
             {
                 name = "Execute PUSH4GET",
@@ -152,11 +137,6 @@ namespace FireSharp.Tests
         [Test, Category("INTEGRATION")]
         public async Task GetListAsync()
         {
-            if (FirebaseClient == null)
-            {
-                Assert.Inconclusive();
-            }
-
             var expected = new List<Todo>
             {
                 new Todo {name = "Execute PUSH4GET1", priority = 2},
@@ -189,11 +169,6 @@ namespace FireSharp.Tests
         [Test, Category("INTEGRATION")]
         public async Task OnChangeGetAsync()
         {
-            if (FirebaseClient == null)
-            {
-                Assert.Inconclusive();
-            }
-
             var id = Guid.NewGuid().ToString("N");
 
             var changes = new ConcurrentBag<Todo>();
@@ -232,11 +207,6 @@ namespace FireSharp.Tests
         [Test, Category("INTEGRATION"), Category("SYNC")]
         public void Push()
         {
-            if (FirebaseClient == null)
-            {
-                Assert.Inconclusive();
-            }
-
             var todo = new Todo
             {
                 name = "Execute PUSH4",
@@ -253,11 +223,6 @@ namespace FireSharp.Tests
         [Test, Category("INTEGRATION"), Category("ASYNC")]
         public async Task PushAsync()
         {
-            if (FirebaseClient == null)
-            {
-                Assert.Inconclusive();
-            }
-
             var todo = new Todo
             {
                 name = "Execute PUSH4",
@@ -274,11 +239,6 @@ namespace FireSharp.Tests
         [Test, Category("INTEGRATION"), Category("ASYNC")]
         public async Task SecondConnectionWithoutSlash()
         {
-            if (FirebaseClient == null)
-            {
-                Assert.Inconclusive();
-            }
-
             // This integration test will write from _config but read from a second Firebase connection to
             // the same DB, but with a BasePath which does not contain the unnecessary trailing slash.
             var secondClientToTest = new FirebaseClient(new FirebaseConfig
@@ -306,11 +266,6 @@ namespace FireSharp.Tests
         [Test, Category("INTEGRATION"), Category("SYNC")]
         public void Set()
         {
-            if (FirebaseClient == null)
-            {
-                Assert.Inconclusive();
-            }
-
             var todo = new Todo
             {
                 name = "Execute SET",
@@ -331,11 +286,6 @@ namespace FireSharp.Tests
         [Test, Category("INTEGRATION"), Category("ASYNC")]
         public async Task SetAsync()
         {
-            if (FirebaseClient == null)
-            {
-                Assert.Inconclusive();
-            }
-
             var todo = new Todo
             {
                 name = "Execute SET",
@@ -356,11 +306,6 @@ namespace FireSharp.Tests
         [Test, Category("INTEGRATION"), Category("SYNC")]
         public void Update()
         {
-            if (FirebaseClient == null)
-            {
-                Assert.Inconclusive();
-            }
-
             FirebaseClient.Set("todos/updatetest/set", new Todo
             {
                 name = "Execute SET",
@@ -383,11 +328,6 @@ namespace FireSharp.Tests
         [Test, Category("INTEGRATION"), Category("ASYNC")]
         public async Task UpdateAsync()
         {
-            if (FirebaseClient == null)
-            {
-                Assert.Inconclusive();
-            }
-
             await FirebaseClient.SetAsync("todos/set/setAsync", new Todo
             {
                 name = "Execute SET",
@@ -410,22 +350,12 @@ namespace FireSharp.Tests
         [Test, ExpectedException(typeof(FirebaseException)), Category("INTEGRATION"), Category("SYNC")]
         public void UpdateFailure()
         {
-            if (FirebaseClient == null)
-            {
-                Assert.Inconclusive();
-            }
-
             var response = FirebaseClient.Update("todos", true);
         }
 
         [Test, Category("INTEGRATION"), Category("ASYNC")]
         public async Task UpdateFailureAsync()
         {
-            if (FirebaseClient == null)
-            {
-                Assert.Inconclusive();
-            }
-
             await AssertExtensions.ThrowsAsync<FirebaseException>(async () =>
             {
                 var response = await FirebaseClient.UpdateAsync("todos", true);
@@ -435,11 +365,6 @@ namespace FireSharp.Tests
         [Test, Category("INTEGRATION"), Category("ASYNC")]
         public async Task GetWithQueryAsync()
         {
-            if (FirebaseClient == null)
-            {
-                Assert.Inconclusive();
-            }
-
             await FirebaseClient.PushAsync("todos/get/pushAsync", new Todo
             {
                 name = "Execute PUSH4GET",
@@ -462,11 +387,6 @@ namespace FireSharp.Tests
         [Test]
         public async Task GetWithNonStringStartEndQueryAsync()
         {
-            if (FirebaseClient == null)
-            {
-                Assert.Inconclusive();
-            }
-
             const string TodosPushLocation = "todos/get/pushAsync";
 
             await FirebaseClient.PushAsync(
@@ -518,11 +438,6 @@ namespace FireSharp.Tests
         [Test]
         public async Task ListenToEntityList()
         {
-            if (FirebaseClient == null)
-            {
-                Assert.Inconclusive();
-            }
-
             const string TodosListLocation = "todos/entityList";
 
 
@@ -622,6 +537,31 @@ namespace FireSharp.Tests
             {
                 observer.Cancel();
             }
+        }
+
+        [Test]
+        public async Task WriteToExistingRule()
+        {
+            var rulesClient = new FirebaseClient(new FirebaseConfig { BasePath = FirebaseUrl, AuthSecret = FirebaseSecret });
+
+            var rules = await rulesClient.GetDatabaseRulesAsync();
+
+            rules[UniquePathId]["existing-rules-test"] = new Dictionary<string, object>
+                                               {
+                                                   { ".read", "auth != null" }
+                                               };
+
+            await rulesClient.SetDatabaseRulesAsync(rules.Rules);
+
+            rules = await rulesClient.GetDatabaseRulesAsync();
+
+            var existingRules = rules[UniquePathId];
+
+            Assert.IsInstanceOf<DatabaseRules>(existingRules["existing-rules-test"]);
+
+            Assert.DoesNotThrow(() => existingRules["existing-rules-test"].Rules[".indexOn"] = "priority");
+            
+            await rulesClient.SetDatabaseRulesAsync(rules.Rules);
         }
     }
 }

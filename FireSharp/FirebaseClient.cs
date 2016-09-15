@@ -12,6 +12,7 @@ using FireSharp.Interfaces;
 using FireSharp.Logging;
 using FireSharp.Response;
 
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace FireSharp
@@ -268,7 +269,7 @@ namespace FireSharp
             }
         }
 
-        public async Task<IDatabaseRules> GetDatabaseRulesAsync()
+        public async Task<DatabaseRules> GetDatabaseRulesAsync()
         {
             try
             {
@@ -278,7 +279,7 @@ namespace FireSharp
                     HandleIfErrorResponse(response.StatusCode, content);
                     var rules = content.ReadAs<JObject>();
 
-                    return new DatabaseRules(rules["rules"].ToObject<IDictionary<string, object>>());
+                    return rules["rules"].ToObject<DatabaseRules>();
                 }
             }
             catch (HttpRequestException ex)
