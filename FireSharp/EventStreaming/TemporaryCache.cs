@@ -47,6 +47,11 @@ namespace FireSharp.EventStreaming
             throw new NotImplementedException();
         }
 
+        public Task RemoveAllAsync()
+        {
+            throw new NotImplementedException();
+        }
+
         public void Replace(string path, JsonReader data)
         {
             lock (_treeLock)

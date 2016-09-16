@@ -75,24 +75,29 @@ namespace FireSharp.Response
         {
             if (path == "/" && _added != null)
             {
-                // this is an addition of multiple entities, which occurs 
-                // when first listening to a path with existing entites
-                var entityDict = dataJson.ReadAs<Dictionary<string, JToken>>();
-                foreach (var key in entityDict.Keys)
+                if (dataJson != "null")
                 {
-                    var jtoken = entityDict[key];
-                    try
+                    // this is an addition of multiple entities, which occurs 
+                    // when first listening to a path with existing entites
+                    var entityDict = dataJson.ReadAs<Dictionary<string, JToken>>();
+                    foreach (var key in entityDict.Keys)
                     {
-                        var entity = jtoken.ToObject<T>();
-                        await Cache.AddOrUpdate(key, entity);
-                        _added(this, key, entity);
+                        var jtoken = entityDict[key];
+                        try
+                        {
+                            var entity = jtoken.ToObject<T>();
+                            await Cache.AddOrUpdate(key, entity);
+                            _added(this, key, entity);
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Error($"Error converting entity list value to {typeof(T).Name}.  The value was: \n{jtoken}", ex);
+                        }
                     }
-                    catch (Exception ex)
-                    {
-                        Log.Error(
-                            $"Error converting entity list value to {typeof(T).Name}.  The value was: \n{jtoken}",
-                            ex);
-                    }
+                }
+                else
+                {
+                    await Cache.RemoveAllAsync();
                 }
             }
             else

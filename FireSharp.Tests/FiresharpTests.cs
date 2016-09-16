@@ -540,6 +540,109 @@ namespace FireSharp.Tests
         }
 
         [Test]
+        public async Task ListenToEntityListEntitiesAddedAfterListenStart()
+        {
+            const string TodosListLocation = "todos/entityList";
+            
+            var added = new Dictionary<string, Todo>();
+            var removed = new Dictionary<string, Todo>();
+            var changed = new Dictionary<string, Tuple<Todo, Todo, string>>(); // new, old, path
+
+            var observer = await FirebaseClient.MonitorEntityListAsync<Todo>(
+                TodosListLocation,
+                (s, key, val) =>
+                {
+                    added.Add(key, val);
+                },
+                (s, key, path, val, oldVal) =>
+                {
+                    changed.Add(key, new Tuple<Todo, Todo, string>(val, oldVal, path));
+                },
+                (s, key, val) =>
+                {
+                    removed.Add(key, val);
+                });
+
+            var todo1Response = await FirebaseClient.PushAsync(
+              TodosListLocation,
+              new Todo
+              {
+                  name = "Priority 1",
+                  priority = 1
+              });
+
+            var todo2Response = await FirebaseClient.PushAsync(
+                TodosListLocation,
+                new Todo
+                {
+                    name = "Priority 2",
+                    priority = 2
+                });
+
+            var todo3Response = await FirebaseClient.PushAsync(
+                TodosListLocation,
+                new Todo
+                {
+                    name = "Priority 3",
+                    priority = 3
+                });
+
+            var todo4Response = await FirebaseClient.PushAsync(
+                TodosListLocation,
+                new Todo
+                {
+                    name = "Priority 4",
+                    priority = 4
+                });
+
+            var todo5Response = await FirebaseClient.PushAsync(
+                TodosListLocation,
+                new Todo
+                {
+                    name = "Priority 5",
+                    priority = 5
+                });
+
+            try
+            {
+                await FirebaseClient.SetAsync($"{TodosListLocation}/{todo4Response.Result.Name}/priority", 99);
+
+                await FirebaseClient.DeleteAsync($"{TodosListLocation}/{todo5Response.Result.Name}");
+
+                var todo6Response = await FirebaseClient.PushAsync(
+                    TodosListLocation,
+                    new Todo
+                    {
+                        name = "Priority 6",
+                        priority = 6
+                    });
+
+                await Task.Delay(1000);
+
+                Assert.AreEqual(6, added.Count);
+                Assert.IsTrue(added.Any(kvp => kvp.Key == todo1Response.Result.Name));
+                Assert.IsTrue(added.Any(kvp => kvp.Key == todo2Response.Result.Name));
+                Assert.IsTrue(added.Any(kvp => kvp.Key == todo3Response.Result.Name));
+                Assert.IsTrue(added.Any(kvp => kvp.Key == todo4Response.Result.Name));
+                Assert.IsTrue(added.Any(kvp => kvp.Key == todo5Response.Result.Name));
+                Assert.IsTrue(added.Any(kvp => kvp.Key == todo6Response.Result.Name));
+
+                Assert.AreEqual(1, changed.Count);
+                Assert.IsTrue(changed.Single().Key == todo4Response.Result.Name);
+                Assert.AreEqual(changed.Single().Value.Item3, "priority");
+                Assert.AreEqual(changed.Single().Value.Item1.priority, 99); // new value
+                Assert.AreEqual(changed.Single().Value.Item2.priority, 4); // old value
+
+                Assert.AreEqual(1, removed.Count);
+                Assert.IsTrue(removed.Single().Key == todo5Response.Result.Name);
+            }
+            finally
+            {
+                observer.Cancel();
+            }
+        }
+
+        [Test]
         public async Task WriteToExistingRule()
         {
             var rulesClient = new FirebaseClient(new FirebaseConfig { BasePath = FirebaseUrl, AuthSecret = FirebaseSecret });

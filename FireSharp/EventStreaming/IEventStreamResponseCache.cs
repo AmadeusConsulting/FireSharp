@@ -10,5 +10,7 @@ namespace FireSharp.EventStreaming
         Task AddOrUpdate(string path, T data);
 
         Task Remove(string path);
+
+        Task RemoveAllAsync();
     }
 }

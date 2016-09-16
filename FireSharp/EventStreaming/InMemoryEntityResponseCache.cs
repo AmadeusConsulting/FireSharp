@@ -35,6 +35,11 @@ namespace FireSharp.EventStreaming
             await _cacheHandler.RemoveByKey(key);
         }
 
+        public async Task RemoveAllAsync()
+        {
+            await _cacheHandler.Purge();
+        }
+
         public void Dispose()
         {
             Dispose(true);
