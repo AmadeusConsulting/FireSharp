@@ -71,7 +71,7 @@ namespace FireSharp.Tests
                         notSerialized = "This doesn't belong in JSON"
                     });
 
-            requestContent.ShouldBeEquivalentTo(@"{""name"":""foo bar"",""priority"":1}");
+            requestContent.ShouldBeEquivalentTo(@"{""name"":""foo bar"",""priority"":1,""assignee"":null}");
         }
     }
 }
