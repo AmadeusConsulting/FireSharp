@@ -9,5 +9,16 @@ namespace FireSharp.Tests.Models
 
         [JsonIgnore]
         public string notSerialized { get; set; }
+
+        public Assignee assignee { get; set; }
+    }
+
+    public class Assignee
+    {
+        public string firstName { get; set; }
+
+        public string lastName { get; set; }
+
+        public string position { get; set; }
     }
 }

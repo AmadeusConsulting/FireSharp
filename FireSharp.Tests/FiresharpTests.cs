@@ -384,7 +384,7 @@ namespace FireSharp.Tests
             Assert.IsTrue(response.Body.Contains("name"));
         }
 
-        [Test]
+        [Test, Category("INTEGRATION"), Category("ASYNC")]
         public async Task GetWithNonStringStartEndQueryAsync()
         {
             const string TodosPushLocation = "todos/get/pushAsync";
@@ -435,7 +435,7 @@ namespace FireSharp.Tests
             Assert.IsFalse(response.Body.Contains("Priority 1") || response.Body.Contains("Priority 5"));
         }
 
-        [Test]
+        [Test, Category("INTEGRATION"), Category("ASYNC")]
         public async Task ListenToEntityList()
         {
             const string TodosListLocation = "todos/entityList";
@@ -539,7 +539,7 @@ namespace FireSharp.Tests
             }
         }
 
-        [Test]
+        [Test, Category("INTEGRATION"), Category("ASYNC")]
         public async Task ListenToEntityListEntitiesAddedAfterListenStart()
         {
             const string TodosListLocation = "todos/entityList";
@@ -642,7 +642,7 @@ namespace FireSharp.Tests
             }
         }
 
-        [Test]
+        [Test, Category("INTEGRATION"), Category("ASYNC")]
         public async Task WriteToExistingRule()
         {
             var rulesClient = new FirebaseClient(new FirebaseConfig { BasePath = FirebaseUrl, AuthSecret = FirebaseSecret });
@@ -665,6 +665,78 @@ namespace FireSharp.Tests
             Assert.DoesNotThrow(() => existingRules["existing-rules-test"].Rules[".indexOn"] = "priority");
             
             await rulesClient.SetDatabaseRulesAsync(rules.Rules);
+        }
+
+        [Test, Category("INTEGRATION"), Category("ASYNC")]
+        public async Task UpdateEntityListEntityWithNestedObject()
+        {
+            const string TodosListLocation = "todos/entityList";
+
+            var added = new Dictionary<string, Todo>();
+            var removed = new Dictionary<string, Todo>();
+            var changed = new Dictionary<string, Tuple<Todo, Todo, string>>(); // new, old, path
+
+            var observer = await FirebaseClient.MonitorEntityListAsync<Todo>(
+                TodosListLocation,
+                (s, key, val) =>
+                {
+                    added.Add(key, val);
+                },
+                (s, key, path, val, oldVal) =>
+                {
+                    changed.Add(key, new Tuple<Todo, Todo, string>(val, oldVal, path));
+                },
+                (s, key, val) =>
+                {
+                    removed.Add(key, val);
+                });
+
+            var todo1Response = await FirebaseClient.PushAsync(
+              TodosListLocation,
+              new Todo
+              {
+                  name = "Priority 1",
+                  priority = 1
+              });
+
+            var todo2Response = await FirebaseClient.PushAsync(
+              TodosListLocation,
+              new Todo
+              {
+                  name = "Priority 1",
+                  priority = 1
+              });
+
+            try
+            {
+                await FirebaseClient.SetAsync(
+                    $"{TodosListLocation}/{todo2Response.Result.Name}/assignee",
+                    new Assignee
+                        {
+                            firstName = "John",
+                            lastName = "Doe",
+                            position = "Manager"
+                        });
+
+                await Task.Delay(1000);
+
+                Assert.AreEqual(2, added.Count);
+                Assert.IsTrue(added.Any(kvp => kvp.Key == todo1Response.Result.Name));
+              
+
+                Assert.AreEqual(1, changed.Count);
+                Assert.IsTrue(changed.Single().Key == todo2Response.Result.Name);
+                Assert.AreEqual(changed.Single().Value.Item3, "assignee"); // changed path
+                Assert.IsNotNull(changed.Single().Value.Item1.assignee); // new value
+                Assert.IsNotNull(changed.Single().Value.Item1.assignee.firstName); 
+                Assert.IsNotNull(changed.Single().Value.Item1.assignee.lastName); 
+                Assert.IsNotNull(changed.Single().Value.Item1.assignee.position);
+                Assert.IsNull(changed.Single().Value.Item2.assignee); // old value
+            }
+            finally
+            {
+                observer.Cancel();
+            }
         }
     }
 }

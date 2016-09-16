@@ -106,17 +106,17 @@ namespace FireSharp.Response
             }
         }
         
-        private static void WriteElement(JsonWriter writer, PathElement elem, string finalValue)
+        private static void WriteElement(JsonWriter writer, PathElement elem, string finalValueJson)
         {
             writer.WriteStartObject();
             writer.WritePropertyName(elem.Name);
             if (elem.Child != null)
             {
-                WriteElement(writer, elem.Child, finalValue);
+                WriteElement(writer, elem.Child, finalValueJson);
             }
             else
             {
-                writer.WriteValue(finalValue);
+                writer.WriteRawValue(finalValueJson);
             }
 
             writer.WriteEndObject();
@@ -216,8 +216,6 @@ namespace FireSharp.Response
                 else
                 {
                     // build a json document from the path
-                    var finalValue = dataJson.ReadAs<string>();
-
                     PathElement last = null;
                     var pathElements = pathCaptures.Cast<Capture>().Reverse().Select(
                         c =>
@@ -236,7 +234,7 @@ namespace FireSharp.Response
                     var sb = new StringBuilder();
                     using (var writer = new JsonTextWriter(new StringWriter(sb)))
                     {
-                        WriteElement(writer, firstElement, finalValue);
+                        WriteElement(writer, firstElement, dataJson);
                     }
 
                     var entity = await Cache.Get(key);
