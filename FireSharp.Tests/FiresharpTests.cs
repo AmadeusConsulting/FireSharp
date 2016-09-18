@@ -738,5 +738,160 @@ namespace FireSharp.Tests
                 observer.Cancel();
             }
         }
+
+        [Test]
+        [Category("INTEGRATION")]
+        [Category("ASYNC")]
+        public async Task ConcurrentEntityStreaming()
+        {
+            const string TodosListLocation = "todos/entityList";
+            const string TodosListLocation2 = "todos/entityList2";
+
+            var added = new Dictionary<string, Todo>();
+            var removed = new Dictionary<string, Todo>();
+            var changed = new Dictionary<string, Tuple<Todo, Todo, string>>(); // new, old, path
+
+            var added2 = new Dictionary<string, Todo>();
+            var removed2 = new Dictionary<string, Todo>();
+            var changed2 = new Dictionary<string, Tuple<Todo, Todo, string>>(); // new, old, path
+
+            var log = Config.LogManager.GetLogger("ConcurrentEntityStreaming");
+
+            var observer = await FirebaseClient.MonitorEntityListAsync<Todo>(
+                TodosListLocation,
+                (s, key, val) =>
+                {
+                    log.Info($"Added TODO {key} \n{val}");
+                    added.Add(key, val);
+                },
+                (s, key, path, val, oldVal) =>
+                {
+                    log.Info($"Changed TODO {path} \n{oldVal}\n{val}");
+                    changed.Add(key, new Tuple<Todo, Todo, string>(val, oldVal, path));
+                },
+                (s, key, val) =>
+                {
+                    log.Info($"Removed TODO {key} \n{val}");
+                    removed.Add(key, val);
+                });
+
+            var observer2 = await FirebaseClient.MonitorEntityListAsync<Todo>(
+                TodosListLocation2,
+                (s, key, val) =>
+                {
+                    log.Info($"Added TODO {key} \n{val}");
+                    added2.Add(key, val);
+                },
+                (s, key, path, val, oldVal) =>
+                {
+                    log.Info($"Changed TODO {path} \n{oldVal}\n{val}");
+                    changed2.Add(key, new Tuple<Todo, Todo, string>(val, oldVal, path));
+                },
+                (s, key, val) =>
+                {
+                    log.Info($"Removed TODO {key} \n{val}");
+                    removed2.Add(key, val);
+                });
+
+            var todo1Response = await FirebaseClient.PushAsync(
+              TodosListLocation,
+              new Todo
+              {
+                  name = "Priority 1",
+                  priority = 1
+              });
+
+            var todo2Response = await FirebaseClient.PushAsync(
+                TodosListLocation,
+                new Todo
+                {
+                    name = "Priority 2",
+                    priority = 2
+                });
+            
+            var todo1Response2 = await FirebaseClient.PushAsync(
+             TodosListLocation2,
+             new Todo
+             {
+                 name = "Priority 1",
+                 priority = 1
+             });
+
+            var todo2Response2 = await FirebaseClient.PushAsync(
+                TodosListLocation2,
+                new Todo
+                {
+                    name = "Priority 2",
+                    priority = 2
+                });
+
+            try
+            {
+                // 1
+                await FirebaseClient.SetAsync($"{TodosListLocation}/{todo2Response.Result.Name}/priority", 99);
+
+                await FirebaseClient.DeleteAsync($"{TodosListLocation}/{todo1Response.Result.Name}");
+
+                var todo3Response = await FirebaseClient.PushAsync(
+                    TodosListLocation,
+                    new Todo
+                    {
+                        name = "Priority 3",
+                        priority = 6
+                    });
+
+                // 2
+                await FirebaseClient.SetAsync($"{TodosListLocation2}/{todo2Response2.Result.Name}/priority", 99);
+
+                await FirebaseClient.DeleteAsync($"{TodosListLocation2}/{todo1Response2.Result.Name}");
+
+                var todo3Response2 = await FirebaseClient.PushAsync(
+                    TodosListLocation2,
+                    new Todo
+                    {
+                        name = "Priority 3",
+                        priority = 6
+                    });
+
+                await Task.Delay(1000);
+
+                // 1
+                Assert.AreEqual(3, added.Count);
+                Assert.IsTrue(added.Any(kvp => kvp.Key == todo1Response.Result.Name));
+                Assert.IsTrue(added.Any(kvp => kvp.Key == todo2Response.Result.Name));
+                Assert.IsTrue(added.Any(kvp => kvp.Key == todo3Response.Result.Name));
+                
+
+                Assert.AreEqual(1, changed.Count);
+                Assert.IsTrue(changed.Single().Key == todo2Response.Result.Name);
+                Assert.AreEqual(changed.Single().Value.Item3, "priority");
+                Assert.AreEqual(changed.Single().Value.Item1.priority, 99, $"Expected new priority = 99.\nNew Value:\n{changed.Single().Value.Item1}\nOld Value:\n{changed.Single().Value.Item2}"); // new value
+                Assert.AreEqual(changed.Single().Value.Item2.priority, 2); // old value
+
+                Assert.AreEqual(1, removed.Count);
+                Assert.IsTrue(removed.Single().Key == todo1Response.Result.Name);
+
+                // 2
+                Assert.AreEqual(3, added2.Count);
+                Assert.IsTrue(added2.Any(kvp => kvp.Key == todo1Response2.Result.Name));
+                Assert.IsTrue(added2.Any(kvp => kvp.Key == todo2Response2.Result.Name));
+                Assert.IsTrue(added2.Any(kvp => kvp.Key == todo3Response2.Result.Name));
+
+
+                Assert.AreEqual(1, changed2.Count);
+                Assert.IsTrue(changed2.Single().Key == todo2Response2.Result.Name);
+                Assert.AreEqual(changed2.Single().Value.Item3, "priority");
+                Assert.AreEqual(changed2.Single().Value.Item1.priority, 99); // new value
+                Assert.AreEqual(changed2.Single().Value.Item2.priority, 2); // old value
+
+                Assert.AreEqual(1, removed2.Count);
+                Assert.IsTrue(removed2.Single().Key == todo1Response2.Result.Name);
+            }
+            finally
+            {
+                observer.Cancel();
+                observer2.Cancel();
+            }
+        }
     }
 }

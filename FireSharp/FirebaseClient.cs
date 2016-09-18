@@ -318,7 +318,7 @@ namespace FireSharp
                 added, 
                 changed, 
                 removed, 
-                _cacheProvider.GetCache<TEntity>(), 
+                _cacheProvider.GetCache<TEntity>(path), 
                 _requestManager, 
                 _logManager, 
                 new CancellationTokenSource());

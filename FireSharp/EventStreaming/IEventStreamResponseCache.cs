@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace FireSharp.EventStreaming
@@ -12,5 +13,7 @@ namespace FireSharp.EventStreaming
         Task Remove(string path);
 
         Task RemoveAllAsync();
+
+        Task<IEnumerable<T>> GetAllAsync();
     }
 }

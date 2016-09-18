@@ -57,8 +57,9 @@ namespace FireSharp
         {
             var request = PrepareEventStreamRequest(path, null);
 
-            var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
-            response.EnsureSuccessStatusCode();
+            var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
+
+            await CheckStatusCode(response).ConfigureAwait(false);
 
             return response;
         }
@@ -69,18 +70,9 @@ namespace FireSharp
 
             try
             {
-                var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+                var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
 
-                if (!response.IsSuccessStatusCode)
-                {
-                    var responseContent = await response.Content.ReadAsStringAsync();
-
-                    _log.Error($"Request status code was not between 200 and 299: \n\n{responseContent}");
-
-                    throw new FirebaseApiException(
-                        $"The response status code does not indicate success.\n\n The server responded with: {responseContent}",
-                        response);
-                }
+                await CheckStatusCode(response).ConfigureAwait(false);
 
                 return response;
             }
@@ -88,6 +80,20 @@ namespace FireSharp
             {
                 _log.Error($"Failed to complete request to {request.RequestUri}", ex);
                 throw new FirebaseApiException("Firebase API Request Failed.", null, ex);
+            }
+        }
+
+        private async Task CheckStatusCode(HttpResponseMessage response)
+        {
+            if (!response.IsSuccessStatusCode)
+            {
+                var responseContent = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+
+                _log.Error($"Request status code was not between 200 and 299: \n\n{responseContent}");
+
+                throw new FirebaseApiException(
+                    $"The response status code does not indicate success.\n\n The server responded with: {responseContent}",
+                    response);
             }
         }
 

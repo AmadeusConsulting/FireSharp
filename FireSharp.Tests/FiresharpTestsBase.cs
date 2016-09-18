@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Configuration;
+using System.Diagnostics;
 using System.Net.Http;
 
 using Common.Testing.NUnit;
@@ -48,7 +49,7 @@ namespace FireSharp.Tests
                 {
                     AuthSecret = FirebaseSecret,
                     BasePath = $"{FirebaseUrl}{UniquePathId}/",
-                    LogManager = new Log4NetLogManager()
+                    LogManager = new DebugLogManager()
                 };
 
                 FirebaseUrlWithoutSlash = Config.BasePath.Substring(0, Config.BasePath.Length - 1);

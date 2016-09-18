@@ -11,6 +11,11 @@ namespace FireSharp.Tests.Models
         public string notSerialized { get; set; }
 
         public Assignee assignee { get; set; }
+
+        public override string ToString()
+        {
+            return JsonConvert.SerializeObject(this);
+        }
     }
 
     public class Assignee

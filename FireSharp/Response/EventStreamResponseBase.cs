@@ -220,7 +220,7 @@ namespace FireSharp.Response
                         }, 
                     token, 
                     TaskCreationOptions.LongRunning, 
-                    TaskScheduler.Default);
+                    TaskScheduler.Current);
             }
             catch (Exception ex)
             {

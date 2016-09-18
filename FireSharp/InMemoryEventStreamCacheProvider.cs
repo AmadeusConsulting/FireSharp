@@ -11,7 +11,7 @@ namespace FireSharp
     {
         #region Fields
 
-        private readonly ConcurrentDictionary<Type, object> _cacheTable;
+        private readonly ConcurrentDictionary<string, object> _cacheTable;
 
         #endregion
 
@@ -19,7 +19,7 @@ namespace FireSharp
 
         public InMemoryEventStreamCacheProvider()
         {
-            _cacheTable = new ConcurrentDictionary<Type, object>();
+            _cacheTable = new ConcurrentDictionary<string, object>();
         }
 
         #endregion
@@ -32,9 +32,11 @@ namespace FireSharp
             GC.SuppressFinalize(this);
         }
 
-        public IEventStreamResponseCache<T> GetCache<T>()
+        public IEventStreamResponseCache<T> GetCache<T>(string basePath)
         {
-            return (IEventStreamResponseCache<T>)_cacheTable.GetOrAdd(typeof(T), t => new InMemoryEntityResponseCache<T>());
+            var key = $"{typeof(T).FullName}_{basePath}}}";
+
+            return (IEventStreamResponseCache<T>)_cacheTable.GetOrAdd(key, t => new InMemoryEntityResponseCache<T>(basePath));
         }
 
         #endregion

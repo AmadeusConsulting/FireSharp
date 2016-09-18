@@ -97,6 +97,15 @@ namespace FireSharp.Response
                 }
                 else
                 {
+                    if (_removed != null)
+                    {
+                        var deleted = await Cache.GetAllAsync();
+                        foreach (var deletedItem in deleted)
+                        {
+                            _removed(this, _basePath, deletedItem);
+                        }
+                    }
+                    
                     await Cache.RemoveAllAsync();
                 }
             }
@@ -241,6 +250,7 @@ namespace FireSharp.Response
 
                     if (entity == null)
                     {
+                        Log.Info($"Prior value for Entity {key} was not found in cache, fetching it ...");
                         entity = await FetchEntity(key);
                     }
 

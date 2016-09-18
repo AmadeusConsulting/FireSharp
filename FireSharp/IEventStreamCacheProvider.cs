@@ -6,6 +6,6 @@ namespace FireSharp
 {
     public interface IEventStreamCacheProvider : IDisposable
     {
-        IEventStreamResponseCache<T> GetCache<T>();
+        IEventStreamResponseCache<T> GetCache<T>(string basePath);
     }
 }
