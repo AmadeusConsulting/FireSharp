@@ -1,4 +1,6 @@
-﻿using Common.Testing.NUnit;
+﻿using System.Linq.Expressions;
+
+using Common.Testing.NUnit;
 using FluentAssertions;
 using NUnit.Framework;
 
@@ -62,6 +64,14 @@ namespace FireSharp.Tests
             QueryBuilder queryBuilder = QueryBuilder.New().EqualTo(10);
             var queryString = queryBuilder.ToQueryString();
             queryString.ShouldBeEquivalentTo("equalTo=10");
+        }
+
+        [Test]
+        public void EqualToQueryTestWithBoolean()
+        {
+            QueryBuilder queryBuilder = QueryBuilder.New().EqualTo(true);
+            var queryString = queryBuilder.ToQueryString();
+            queryString.ShouldBeEquivalentTo("equalTo=true");
         }
     }
 }

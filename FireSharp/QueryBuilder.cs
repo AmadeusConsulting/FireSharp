@@ -77,6 +77,11 @@ namespace FireSharp
 
                 var stringValue = value.ToString();
 
+                if (value is bool)
+                {
+                    stringValue = stringValue.ToLowerInvariant();  // true or false, not True or False
+                }
+
                 if (!string.IsNullOrEmpty(stringValue))
                 {
                     _query.Add(parameterName, skipEncoding ? value : EscapeString(stringValue, quote));
