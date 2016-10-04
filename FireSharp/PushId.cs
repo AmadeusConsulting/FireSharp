@@ -84,6 +84,8 @@ namespace FireSharp
                     throw new Exception("Id Length should be 20.");
                 }
 
+                LastPushTimeStamp = timeStamp;
+
                 return id;
             }
         }
