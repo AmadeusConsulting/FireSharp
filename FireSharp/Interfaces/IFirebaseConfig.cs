@@ -3,6 +3,7 @@ using System.Diagnostics.Contracts;
 
 using FireSharp.EventStreaming;
 using FireSharp.Logging;
+using FireSharp.Security;
 
 namespace FireSharp.Interfaces
 {
@@ -17,5 +18,7 @@ namespace FireSharp.Interfaces
         IHttpClientProvider HttpClientProvider { get; set; }
 
         IEventStreamCacheProvider CacheProvider { get; set; }
+
+        IRequestAuthenticator RequestAuthenticator { get; set; }
     }
 }

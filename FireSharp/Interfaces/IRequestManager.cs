@@ -10,6 +10,5 @@ namespace FireSharp.Interfaces
         Task<HttpResponseMessage> ListenAsync(string path, QueryBuilder queryBuilder);
         Task<HttpResponseMessage> RequestAsync(HttpMethod method, string path, object payload = null, bool formatPayload = false);
         Task<HttpResponseMessage> RequestAsync(HttpMethod method, string path, QueryBuilder queryBuilder, object payload = null, bool formatPayload = false);
-        Task<HttpResponseMessage> RequestApiAsync(HttpMethod method, string path, QueryBuilder queryBuilder, object payload = null);
     }
 }

@@ -2,6 +2,7 @@
 using System;
 
 using FireSharp.Logging;
+using FireSharp.Security;
 
 namespace FireSharp.Config
 {
@@ -14,6 +15,8 @@ namespace FireSharp.Config
         private IHttpClientProvider _httpClientProvider;
 
         private IEventStreamCacheProvider _cacheProvider;
+
+        private IRequestAuthenticator _requestAuthenticator;
 
         public FirebaseConfig()
         {
@@ -70,6 +73,18 @@ namespace FireSharp.Config
             set
             {
                 _cacheProvider = value;
+            }
+        }
+
+        public IRequestAuthenticator RequestAuthenticator
+        {
+            get
+            {
+                return _requestAuthenticator ?? (_requestAuthenticator = new AuthSecretAuthenticator(AuthSecret));
+            }
+            set
+            {
+                _requestAuthenticator = value;
             }
         }
     }

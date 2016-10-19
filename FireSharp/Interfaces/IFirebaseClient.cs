@@ -23,12 +23,6 @@ namespace FireSharp.Interfaces
         FirebaseResponse Delete(string path);
         FirebaseResponse Update<T>(string path, T data);
 
-        FirebaseResponse CreateUser(string email, string password);
-        FirebaseResponse ChangeEmail(string oldEmail, string password, string newEmail);
-        FirebaseResponse RemoveUser(string email, string password);
-        FirebaseResponse ResetPassword(string email, string password);
-        FirebaseResponse ChangePassword(string email, string oldPassword, string newPassword);
-
         [Obsolete("This method is obsolete use OnAsync instead.")]
         Task<IEventStreamResponse> ListenAsync(string path,
             ValueAddedEventHandler added = null,

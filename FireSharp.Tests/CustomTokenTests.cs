@@ -147,6 +147,14 @@ nml6IxDNUFXUW4HUavLt/E3LRJgnUcACODlybIoQqlrPh/iuao89wfki7vk+6Dhn
             Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
 
             var responseBodyJson = await response.Content.ReadAsStringAsync();
+            /* 
+            {
+                "kind": "identitytoolkit#VerifyCustomTokenResponse",
+                "idToken": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImY4M2...1bjg7sPSf-CVARQ",
+                "refreshToken": "AGl2vTSk_KyhJ...-vlbVKe33KplW6m78-bBUiYQMmL-NII",
+                "expiresIn": "3600"
+            }
+             */
 
             var responseValues = JsonConvert.DeserializeObject<Dictionary<string, string>>(responseBodyJson);
 

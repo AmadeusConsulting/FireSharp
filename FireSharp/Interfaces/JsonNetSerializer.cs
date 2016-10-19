@@ -9,9 +9,9 @@ namespace FireSharp.Interfaces
             return JsonConvert.DeserializeObject<T>(json);
         }
 
-        public string Serialize<T>(T value, bool prettyPrint = false)
+        public string Serialize<T>(T value, bool formatted = false)
         {
-            return JsonConvert.SerializeObject(value, prettyPrint ? Formatting.Indented : Formatting.None);
+            return JsonConvert.SerializeObject(value, formatted ? Formatting.Indented : Formatting.None);
         }
     }
 }

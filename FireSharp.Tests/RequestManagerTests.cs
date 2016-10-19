@@ -13,6 +13,7 @@ using Common.Testing.NUnit;
 using FireSharp.Config;
 using FireSharp.Interfaces;
 using FireSharp.Logging;
+using FireSharp.Security;
 using FireSharp.Tests.Mocks;
 using FireSharp.Tests.Models;
 
@@ -35,16 +36,32 @@ namespace FireSharp.Tests
 
         private ISerializer _serializer;
 
+        private Mock<IHttpClientProvider> _httpClientProvider;
+
+        private Uri _baseUri;
+
+        private Mock<IRequestAuthenticator> _requestAuthenticator;
+
         protected override void FinalizeSetUp()
         {
             _serializer = new JsonNetSerializer();
             _mockHttpHandler = MockFor<MockableHttpMessageHandler>();
+            _baseUri = new Uri("http://not-a-valid-firebase.url/");
+
             _httpClient = new HttpClient(_mockHttpHandler.Object, false)
                               {
-                                  BaseAddress = new Uri("http://not-a-valid-firebase.url/")
+                                  BaseAddress = _baseUri
                               };
-            
-            _requestManager = new RequestManager(_httpClient, _serializer, new NoOpLogManager());
+
+            _httpClientProvider = MockFor<IHttpClientProvider>();
+
+            _requestAuthenticator = MockFor<IRequestAuthenticator>();
+
+            _requestAuthenticator.Setup(ra => ra.AddAuthentication(It.IsAny<HttpRequestMessage>())).Returns(Task.FromResult(0));
+
+            _httpClientProvider.Setup(p => p.GetHttpClient(It.IsAny<Uri>(), It.IsAny<TimeSpan?>())).Returns(_httpClient);
+
+            _requestManager = new RequestManager(_baseUri, _httpClientProvider.Object, _serializer, new NoOpLogManager(), _requestAuthenticator.Object);
         }
 
         [Test]

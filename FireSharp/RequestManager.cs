@@ -7,30 +7,43 @@ using System.Threading.Tasks;
 using FireSharp.Exceptions;
 using FireSharp.Interfaces;
 using FireSharp.Logging;
+using FireSharp.Security;
 
 namespace FireSharp
 {
     public class RequestManager : IRequestManager
     {
-        private readonly HttpClient _httpClient;
+        private readonly IHttpClientProvider _httpClientProvider;
 
         private readonly ISerializer _serializer;
 
         private readonly ILogManager _logManager;
 
-        private readonly string _authSecret;
-
-        private readonly string _apiHost;
+        private readonly IRequestAuthenticator _requestAuthenticator;
 
         public static readonly HttpMethod Patch = new HttpMethod("PATCH");
 
         private readonly ILog _log;
 
-        public RequestManager(HttpClient httpClient, ISerializer serializer, ILogManager logManager, string authSecret = null, string apiHost = null)
+        private Uri _baseUri;
+
+        private TimeSpan _requestTimeout;
+
+        public RequestManager(
+            Uri baseUri,
+            IHttpClientProvider httpClientProvider,
+            ISerializer serializer,
+            ILogManager logManager,
+            IRequestAuthenticator requestAuthenticator,
+            TimeSpan? requestTimeout = null)
         {
-            if (httpClient == null)
+            if (baseUri == null)
             {
-                throw new ArgumentNullException(nameof(httpClient));
+                throw new ArgumentNullException(nameof(baseUri));
+            }
+            if (httpClientProvider == null)
+            {
+                throw new ArgumentNullException(nameof(httpClientProvider));
             }
             if (serializer == null)
             {
@@ -40,12 +53,17 @@ namespace FireSharp
             {
                 throw new ArgumentNullException(nameof(logManager));
             }
+            if (requestAuthenticator == null)
+            {
+                throw new ArgumentNullException(nameof(requestAuthenticator));
+            }
 
-            _httpClient = httpClient;
+            _requestTimeout = requestTimeout ?? TimeSpan.FromSeconds(30);
+            _baseUri = baseUri;
+            _httpClientProvider = httpClientProvider;
             _serializer = serializer;
             _logManager = logManager;
-            _authSecret = authSecret;
-            _apiHost = apiHost;
+            _requestAuthenticator = requestAuthenticator;
             _log = _logManager.GetLogger<RequestManager>();
         }
 
@@ -57,7 +75,7 @@ namespace FireSharp
         {
             var request = PrepareEventStreamRequest(path, null);
 
-            var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
+            var response = await _httpClientProvider.GetHttpClient(_baseUri, _requestTimeout).SendAsync(request, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
 
             await CheckStatusCode(response).ConfigureAwait(false);
 
@@ -70,7 +88,7 @@ namespace FireSharp
 
             try
             {
-                var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
+                var response = await _httpClientProvider.GetHttpClient(_baseUri, _requestTimeout).SendAsync(request, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
 
                 await CheckStatusCode(response).ConfigureAwait(false);
 
@@ -108,8 +126,8 @@ namespace FireSharp
             {
                 var uri = PrepareUri(path, queryBuilder);
                 var request = PrepareRequest(method, uri, payload, formatPayload);
-
-                return _httpClient.SendAsync(request, HttpCompletionOption.ResponseContentRead);
+                
+                return _httpClientProvider.GetHttpClient(_baseUri, _requestTimeout).SendAsync(request, HttpCompletionOption.ResponseContentRead);
             }
             catch (Exception ex)
             {
@@ -118,66 +136,35 @@ namespace FireSharp
             }
         }
 
-        public Task<HttpResponseMessage> RequestApiAsync(HttpMethod method, string path, QueryBuilder queryBuilder, object payload = null)
-        {
-            try
-            {
-                var uri = PrepareApiUri(path, queryBuilder);
-                var request = PrepareRequest(method, uri, payload);
-
-                return _httpClient.SendAsync(request, HttpCompletionOption.ResponseContentRead);
-            }
-            catch (Exception ex)
-            {
-                throw new FirebaseException(
-                    $"An error occured while execute request. Path : {path} , Method : {method}", ex);
-            }
-        }
-        
         private HttpRequestMessage PrepareEventStreamRequest(string path, QueryBuilder queryBuilder)
         {
             var uri = PrepareUri(path, queryBuilder);
 
-            var request = new HttpRequestMessage(HttpMethod.Get, uri);
+            var request = PrepareRequest(HttpMethod.Get, uri);
+
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
 
             return request;
         }
 
-        private HttpRequestMessage PrepareRequest(HttpMethod method, Uri uri, object payload, bool prettyPrint = false)
+        private HttpRequestMessage PrepareRequest(HttpMethod method, Uri uri, object payload = null, bool formatted = false)
         {
             var request = new HttpRequestMessage(method, uri);
 
             if (payload != null)
             {
-                var json = _serializer.Serialize(payload, prettyPrint);
+                var json = _serializer.Serialize(payload, formatted);
                 request.Content = new StringContent(json);
             }
+
+            _requestAuthenticator.AddAuthentication(request);
 
             return request;
         }
 
         private Uri PrepareUri(string path, QueryBuilder queryBuilder)
         {
-            var authToken = !string.IsNullOrWhiteSpace(_authSecret)
-                ? $"{path}.json?auth={_authSecret}"
-                : $"{path}.json";
-
-            var queryStr = string.Empty;
-            if (queryBuilder != null)
-            {
-                queryStr = $"&{queryBuilder.ToQueryString()}";
-            }
-
-            var url = $"{authToken}{queryStr}";
-
-            return new Uri(url, UriKind.Relative);
-        }
-
-        private Uri PrepareApiUri(string path, QueryBuilder queryBuilder)
-        {
-            string uriString = $"https://auth.firebase.com/v2/{_apiHost}/{path}?{queryBuilder.ToQueryString()}";
-            return new Uri(uriString);
+            return new Uri($"{path}.json?{(queryBuilder != null ? queryBuilder.ToQueryString() : string.Empty)}", UriKind.Relative);
         }
     }
 }
