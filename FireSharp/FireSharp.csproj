@@ -61,6 +61,7 @@
     <Compile Include="InMemoryEventStreamCacheProvider.cs" />
     <Compile Include="Interfaces\DefaulFireSharpHttpClientProvider.cs" />
     <Compile Include="Interfaces\IHttpClientProvider.cs" />
+    <Compile Include="Security\CustomTokenAuthenticator.cs" />
     <Compile Include="Security\IRequestAuthenticator.cs" />
     <Compile Include="Logging\NoOpLogger.cs" />
     <Compile Include="Logging\NoOpLogManager.cs" />
@@ -102,6 +103,9 @@
     <Compile Include="Security\FirebaseCustomTokenGenerator.cs" />
     <Compile Include="Security\GoogleCloudCredentials.cs" />
     <Compile Include="Security\IFirebaseCustomTokenGenerator.cs" />
+    <Compile Include="Security\AccessToken.cs" />
+    <Compile Include="Security\VerifyCustomTokenRequest.cs" />
+    <Compile Include="Security\IdentityToken.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\Portable\$(TargetFrameworkVersion)\Microsoft.Portable.CSharp.targets" />
   <Import Project="$(SolutionDir)\.nuget\NuGet.targets" Condition="Exists('$(SolutionDir)\.nuget\NuGet.targets')" />
