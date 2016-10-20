@@ -114,7 +114,7 @@ nml6IxDNUFXUW4HUavLt/E3LRJgnUcACODlybIoQqlrPh/iuao89wfki7vk+6Dhn
             var googleCredentialsJson = File.ReadAllText(_serviceAccountJsonFilePath);
 
             var googleCredentials = JsonConvert.DeserializeObject<GoogleCloudCredentials>(googleCredentialsJson);
-            var tokenGenerator = new FirebaseCustomTokenGenerator(googleCredentials, new FirebaseConfig());
+            var tokenGenerator = new FirebaseCustomTokenGenerator(googleCredentials, new DebugLogManager());
             
             var token = tokenGenerator.GenerateToken("1234", debug: true);
             Debug.WriteLine("Token NO Claims:");
@@ -142,7 +142,7 @@ nml6IxDNUFXUW4HUavLt/E3LRJgnUcACODlybIoQqlrPh/iuao89wfki7vk+6Dhn
             var googleCredentialsJson = File.ReadAllText(_serviceAccountJsonFilePath);
 
             var googleCredentials = JsonConvert.DeserializeObject<GoogleCloudCredentials>(googleCredentialsJson);
-            var tokenGenerator = new FirebaseCustomTokenGenerator(googleCredentials, new FirebaseConfig());
+            var tokenGenerator = new FirebaseCustomTokenGenerator(googleCredentials, new DebugLogManager());
 
             var token = tokenGenerator.GenerateToken(
                 "1234",
@@ -176,7 +176,7 @@ nml6IxDNUFXUW4HUavLt/E3LRJgnUcACODlybIoQqlrPh/iuao89wfki7vk+6Dhn
             var googleCredentialsJson = File.ReadAllText(_serviceAccountJsonFilePath);
 
             var googleCredentials = JsonConvert.DeserializeObject<GoogleCloudCredentials>(googleCredentialsJson);
-            var tokenGenerator = new FirebaseCustomTokenGenerator(googleCredentials, new FirebaseConfig());
+            var tokenGenerator = new FirebaseCustomTokenGenerator(googleCredentials, new DebugLogManager());
 
             var token = tokenGenerator.GenerateToken("1234", debug: true, claims: new Dictionary<string, object>());
 
@@ -204,7 +204,7 @@ nml6IxDNUFXUW4HUavLt/E3LRJgnUcACODlybIoQqlrPh/iuao89wfki7vk+6Dhn
             var googleCredentialsJson = File.ReadAllText(_serviceAccountJsonFilePath);
 
             var googleCredentials = JsonConvert.DeserializeObject<GoogleCloudCredentials>(googleCredentialsJson);
-            var tokenGenerator = new FirebaseCustomTokenGenerator(googleCredentials, new FirebaseConfig());
+            var tokenGenerator = new FirebaseCustomTokenGenerator(googleCredentials, new DebugLogManager());
 
             var token = tokenGenerator.GenerateToken(
                 "1234",

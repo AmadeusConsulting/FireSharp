@@ -52,7 +52,7 @@ namespace FireSharp.Test.Console
 
             var googleCredentials = JsonConvert.DeserializeObject<GoogleCloudCredentials>(File.ReadAllText(serviceAccountJson));
 
-            var generator = new FirebaseCustomTokenGenerator(googleCredentials, config);
+            var generator = new FirebaseCustomTokenGenerator(googleCredentials, config.LogManager);
 
             var token = generator.GenerateToken("111", 3600, debug: true);
 

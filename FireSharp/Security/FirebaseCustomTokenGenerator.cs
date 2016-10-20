@@ -15,8 +15,6 @@ namespace FireSharp.Security
 {
     public class FirebaseCustomTokenGenerator : IFirebaseCustomTokenGenerator
     {
-        private readonly IFirebaseConfig _config;
-
         #region Constants
 
         private const string Audience = "https://identitytoolkit.googleapis.com/google.identity.identitytoolkit.v1.IdentityToolkit";
@@ -35,9 +33,8 @@ namespace FireSharp.Security
 
         #region Constructors and Destructors
 
-        public FirebaseCustomTokenGenerator(GoogleCloudCredentials googleCloudCredentials, IFirebaseConfig config)
+        public FirebaseCustomTokenGenerator(GoogleCloudCredentials googleCloudCredentials, ILogManager logManager)
         {
-            _config = config;
             if (googleCloudCredentials == null)
             {
                 throw new ArgumentNullException(nameof(googleCloudCredentials));
@@ -53,7 +50,7 @@ namespace FireSharp.Security
                 throw new ArgumentException("PrivateKey property cannot be null or empty", nameof(googleCloudCredentials));
             }
 
-            _log = _config.LogManager.GetLogger(this);
+            _log = logManager.GetLogger(this);
             _serviceAccountEmailAddress = googleCloudCredentials.ClientEmail;
             _serviceAccountPrivateKey = googleCloudCredentials.PrivateKey;
         }
