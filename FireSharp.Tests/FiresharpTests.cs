@@ -6,6 +6,7 @@ using NUnit.Framework;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
@@ -483,7 +484,7 @@ namespace FireSharp.Tests
 
             var added = new Dictionary<string, Todo>();
             var removed = new Dictionary<string ,Todo>();
-            var changed = new Dictionary<string, Tuple<Todo, Todo, string>>(); // new, old, path
+            var changed = new Dictionary<string, Tuple<Todo, Todo, IEnumerable<string>>>(); // new, old, path
 
             var observer = await FirebaseClient.MonitorEntityListAsync<Todo>(
                 TodosListLocation,
@@ -491,9 +492,9 @@ namespace FireSharp.Tests
                     {
                         added.Add(key, val);
                     },
-                (s, key, path, val, oldVal) =>
+                (s, key, paths, val, oldVal) =>
                     {
-                        changed.Add(key, new Tuple<Todo, Todo, string>(val, oldVal, path));
+                        changed.Add(key, new Tuple<Todo, Todo, IEnumerable<string>>(val, oldVal, paths));
                     },
                 (s, key, val) =>
                     {
@@ -526,7 +527,7 @@ namespace FireSharp.Tests
 
                 Assert.AreEqual(1, changed.Count);
                 Assert.IsTrue(changed.Single().Key == todo4Response.Result.Name);
-                Assert.AreEqual(changed.Single().Value.Item3, "priority");
+                Assert.Contains("priority", changed.Single().Value.Item3.ToList());
                 Assert.AreEqual(changed.Single().Value.Item1.priority, 99); // new value
                 Assert.AreEqual(changed.Single().Value.Item2.priority, 4); // old value
 
@@ -546,7 +547,7 @@ namespace FireSharp.Tests
             
             var added = new Dictionary<string, Todo>();
             var removed = new Dictionary<string, Todo>();
-            var changed = new Dictionary<string, Tuple<Todo, Todo, string>>(); // new, old, path
+            var changed = new Dictionary<string, Tuple<Todo, Todo, IEnumerable<string>>>(); // new, old, path
 
             var observer = await FirebaseClient.MonitorEntityListAsync<Todo>(
                 TodosListLocation,
@@ -554,9 +555,9 @@ namespace FireSharp.Tests
                 {
                     added.Add(key, val);
                 },
-                (s, key, path, val, oldVal) =>
+                (s, key, paths, val, oldVal) =>
                 {
-                    changed.Add(key, new Tuple<Todo, Todo, string>(val, oldVal, path));
+                    changed.Add(key, new Tuple<Todo, Todo, IEnumerable<string>>(val, oldVal, paths));
                 },
                 (s, key, val) =>
                 {
@@ -629,7 +630,7 @@ namespace FireSharp.Tests
 
                 Assert.AreEqual(1, changed.Count);
                 Assert.IsTrue(changed.Single().Key == todo4Response.Result.Name);
-                Assert.AreEqual(changed.Single().Value.Item3, "priority");
+                Assert.Contains("priority", changed.Single().Value.Item3.ToList());
                 Assert.AreEqual(changed.Single().Value.Item1.priority, 99); // new value
                 Assert.AreEqual(changed.Single().Value.Item2.priority, 4); // old value
 
@@ -674,7 +675,7 @@ namespace FireSharp.Tests
 
             var added = new Dictionary<string, Todo>();
             var removed = new Dictionary<string, Todo>();
-            var changed = new Dictionary<string, Tuple<Todo, Todo, string>>(); // new, old, path
+            var changed = new Dictionary<string, Tuple<Todo, Todo, IEnumerable<string>>>(); // new, old, path
 
             var observer = await FirebaseClient.MonitorEntityListAsync<Todo>(
                 TodosListLocation,
@@ -682,9 +683,9 @@ namespace FireSharp.Tests
                 {
                     added.Add(key, val);
                 },
-                (s, key, path, val, oldVal) =>
+                (s, key, paths, val, oldVal) =>
                 {
-                    changed.Add(key, new Tuple<Todo, Todo, string>(val, oldVal, path));
+                    changed.Add(key, new Tuple<Todo, Todo, IEnumerable<string>>(val, oldVal, paths));
                 },
                 (s, key, val) =>
                 {
@@ -726,7 +727,7 @@ namespace FireSharp.Tests
 
                 Assert.AreEqual(1, changed.Count);
                 Assert.IsTrue(changed.Single().Key == todo2Response.Result.Name);
-                Assert.AreEqual(changed.Single().Value.Item3, "assignee"); // changed path
+                Assert.Contains("assignee", changed.Single().Value.Item3.ToList()); // changed path
                 Assert.IsNotNull(changed.Single().Value.Item1.assignee); // new value
                 Assert.IsNotNull(changed.Single().Value.Item1.assignee.firstName); 
                 Assert.IsNotNull(changed.Single().Value.Item1.assignee.lastName); 
@@ -749,11 +750,11 @@ namespace FireSharp.Tests
 
             var added = new Dictionary<string, Todo>();
             var removed = new Dictionary<string, Todo>();
-            var changed = new Dictionary<string, Tuple<Todo, Todo, string>>(); // new, old, path
+            var changed = new Dictionary<string, Tuple<Todo, Todo, IEnumerable<string>>>(); // new, old, path
 
             var added2 = new Dictionary<string, Todo>();
             var removed2 = new Dictionary<string, Todo>();
-            var changed2 = new Dictionary<string, Tuple<Todo, Todo, string>>(); // new, old, path
+            var changed2 = new Dictionary<string, Tuple<Todo, Todo, IEnumerable<string>>>(); // new, old, path
 
             var log = Config.LogManager.GetLogger("ConcurrentEntityStreaming");
 
@@ -764,10 +765,10 @@ namespace FireSharp.Tests
                     log.Info($"Added TODO {key} \n{val}");
                     added.Add(key, val);
                 },
-                (s, key, path, val, oldVal) =>
+                (s, key, paths, val, oldVal) =>
                 {
-                    log.Info($"Changed TODO {path} \n{oldVal}\n{val}");
-                    changed.Add(key, new Tuple<Todo, Todo, string>(val, oldVal, path));
+                    log.Info($"Changed TODO {paths} \n{oldVal}\n{val}");
+                    changed.Add(key, new Tuple<Todo, Todo, IEnumerable<string>>(val, oldVal, paths));
                 },
                 (s, key, val) =>
                 {
@@ -782,10 +783,10 @@ namespace FireSharp.Tests
                     log.Info($"Added TODO {key} \n{val}");
                     added2.Add(key, val);
                 },
-                (s, key, path, val, oldVal) =>
+                (s, key, paths, val, oldVal) =>
                 {
-                    log.Info($"Changed TODO {path} \n{oldVal}\n{val}");
-                    changed2.Add(key, new Tuple<Todo, Todo, string>(val, oldVal, path));
+                    log.Info($"Changed TODO {paths} \n{oldVal}\n{val}");
+                    changed2.Add(key, new Tuple<Todo, Todo, IEnumerable<string>>(val, oldVal, paths));
                 },
                 (s, key, val) =>
                 {
@@ -864,7 +865,7 @@ namespace FireSharp.Tests
 
                 Assert.AreEqual(1, changed.Count);
                 Assert.IsTrue(changed.Single().Key == todo2Response.Result.Name);
-                Assert.AreEqual(changed.Single().Value.Item3, "priority");
+                Assert.Contains("priority", changed.Single().Value.Item3.ToList());
                 Assert.AreEqual(changed.Single().Value.Item1.priority, 99, $"Expected new priority = 99.\nNew Value:\n{changed.Single().Value.Item1}\nOld Value:\n{changed.Single().Value.Item2}"); // new value
                 Assert.AreEqual(changed.Single().Value.Item2.priority, 2); // old value
 
@@ -880,7 +881,7 @@ namespace FireSharp.Tests
 
                 Assert.AreEqual(1, changed2.Count);
                 Assert.IsTrue(changed2.Single().Key == todo2Response2.Result.Name);
-                Assert.AreEqual(changed2.Single().Value.Item3, "priority");
+                Assert.Contains("priority", changed2.Single().Value.Item3.ToList());
                 Assert.AreEqual(changed2.Single().Value.Item1.priority, 99); // new value
                 Assert.AreEqual(changed2.Single().Value.Item2.priority, 2); // old value
 
@@ -891,6 +892,73 @@ namespace FireSharp.Tests
             {
                 observer.Cancel();
                 observer2.Cancel();
+            }
+        }
+
+        [Test, Category("INTEGRATION"), Category("ASYNC")]
+        public async Task FullValuePathReceivedInChangedEventOnSetValue()
+        {
+            const string TodosListLocation = "todos/entityListPatch";
+
+
+            var todo1Response = await FirebaseClient.PushAsync(
+                TodosListLocation,
+                new Todo
+                {
+                    name = "Priority 1",
+                    priority = 1
+                });
+            
+            var reset = new ManualResetEvent(false);
+
+            var added = new Dictionary<string, Todo>();
+            var removed = new Dictionary<string, Todo>();
+            var changed = new List<KeyValuePair<string, Tuple<Todo, Todo, IEnumerable<string>>>>(); // new, old, path
+
+            var observer = await FirebaseClient.MonitorEntityListAsync<Todo>(
+                               TodosListLocation,
+                               (s, key, val) =>
+                                   {
+                                       added.Add(key, val);
+                                   },
+                               (s, key, paths, val, oldVal) =>
+                                   {
+                                       changed.Add(
+                                           new KeyValuePair<string, Tuple<Todo, Todo, IEnumerable<string>>>(
+                                               key,
+                                               new Tuple<Todo, Todo, IEnumerable<string>>(val, oldVal, paths)));
+                                       if (changed.Count == 2)
+                                       {
+                                           reset.Set();
+                                       }
+                                   },
+                               (s, key, val) =>
+                                   {
+                                       removed.Add(key, val);
+                                   });
+
+            try
+            {
+                await FirebaseClient.SetAsync($"{TodosListLocation}/{todo1Response.Result.Name}/priority", 99);
+
+                await FirebaseClient.UpdateAsync(
+                    $"{TodosListLocation}/{todo1Response.Result.Name}",
+                    new Dictionary<string, object>
+                        {
+                                { "priority", 100 }
+                        });
+
+                reset.WaitOne(TimeSpan.FromSeconds(30));
+
+                Assert.AreEqual(2, changed.Count);
+                Assert.IsTrue(changed.All(c => c.Value.Item3.Contains("priority")));
+                Assert.IsTrue(changed.All(c => c.Key == todo1Response.Result.Name));
+                Assert.IsTrue(changed.First().Value.Item1.priority == 99);
+                Assert.IsTrue(changed.Skip(1).Single().Value.Item1.priority == 100);
+            }
+            finally
+            {
+                observer.Cancel();
             }
         }
     }

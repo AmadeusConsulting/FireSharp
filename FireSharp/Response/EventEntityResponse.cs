@@ -73,40 +73,63 @@ namespace FireSharp.Response
 
         protected override async Task HandleReadLoopDataAsync(string eventName, string path, string dataJson)
         {
-            if (path == "/" && _added != null)
+            if (string.IsNullOrEmpty(dataJson))
             {
-                if (dataJson != "null")
+                throw new ArgumentNullException(nameof(dataJson));
+            }
+
+            if (path == "/")
+            {
+                var dataDictionary = dataJson != "null" ? dataJson.ReadAs<Dictionary<string, JToken>>() : null;
+
+                if (eventName == StreamingEventType.Put)
                 {
-                    // this is an addition of multiple entities, which occurs 
-                    // when first listening to a path with existing entites
-                    var entityDict = dataJson.ReadAs<Dictionary<string, JToken>>();
-                    foreach (var key in entityDict.Keys)
+                    if (dataDictionary != null)
                     {
-                        var jtoken = entityDict[key];
-                        try
+                        // this is an addition of multiple entities, which occurs 
+                        // when first listening to a path with existing entites
+                        foreach (var key in dataDictionary.Keys)
                         {
-                            var entity = jtoken.ToObject<T>();
-                            await Cache.AddOrUpdate(key, entity);
-                            _added(this, key, entity);
+                            var jtoken = dataDictionary[key];
+                            try
+                            {
+                                var entity = jtoken.ToObject<T>();
+                                await Cache.AddOrUpdate(key, entity);
+                                _added(this, key, entity);
+                            }
+                            catch (Exception ex)
+                            {
+                                Log.Error($"Error converting entity list value to {typeof(T).Name}.  The value was: \n{jtoken}", ex);
+                                throw;
+                            }
                         }
-                        catch (Exception ex)
+                    }
+                    else
+                    {
+                        if (_removed != null)
                         {
-                            Log.Error($"Error converting entity list value to {typeof(T).Name}.  The value was: \n{jtoken}", ex);
+                            var deleted = await Cache.GetAllAsync();
+                            foreach (var deletedItem in deleted)
+                            {
+                                _removed(this, _basePath, deletedItem);
+                            }
                         }
+
+                        await Cache.RemoveAllAsync();
                     }
                 }
-                else
+                else if (eventName == StreamingEventType.Patch)
                 {
-                    if (_removed != null)
+                    if (dataDictionary == null)
                     {
-                        var deleted = await Cache.GetAllAsync();
-                        foreach (var deletedItem in deleted)
-                        {
-                            _removed(this, _basePath, deletedItem);
-                        }
+                        throw new FormatException("Expected to get JSON Object as data for patch to Entity List Root, instead got null");
                     }
-                    
-                    await Cache.RemoveAllAsync();
+
+                    foreach (var key in dataDictionary.Keys)
+                    {
+                        var jtoken = dataDictionary[key];
+                        await PatchEntity(key, jtoken.ToObject<JObject>());
+                    }
                 }
             }
             else
@@ -144,13 +167,14 @@ namespace FireSharp.Response
             var keyAndPathMatch = EntityKeyAndPathRegex.Match(path);
             if (!keyAndPathMatch.Success)
             {
-                Debug.WriteLine("Bad PATH format!!!");
-                Debug.WriteLine(path);
+                Log.Debug("Bad PATH format!!!");
+                Log.Debug(path);
                 throw new FormatException($"Invalid Key and Path format: {path}");
             }
 
             var key = keyAndPathMatch.Groups["Key"].Value;
             var pathCaptures = keyAndPathMatch.Groups["Path"].Captures;
+            
             if (pathCaptures.Count == 0)
             {
                 // path was key-only without any nested property path.
@@ -162,44 +186,21 @@ namespace FireSharp.Response
                         // entity deleted
                         var toRemove = await Cache.Get(key);
                         await Cache.Remove(key).ConfigureAwait(false);
-                        if (_removed != null)
-                        {
-                            _removed(this, key, toRemove);
-                        }
+                        _removed.Invoke(this, key, toRemove);
 
                         return;
                     }
 
                     var entity = dataJson.ReadAs<T>();
 
+                    // cache the entity
                     await Cache.AddOrUpdate(key, entity).ConfigureAwait(false);
-
-                    if (_added != null)
-                    {
-                        // cache the entity
-                        _added(this, key, entity);
-                    }
+                    
+                    _added?.Invoke(this, key, entity);
                 }
                 else if (eventName == StreamingEventType.Patch)
                 {
-                    var entity = await Cache.Get(key).ConfigureAwait(false);
-
-                    if (entity == null)
-                    {
-                        // entity is not cached, we will need to fetch it prior to updating
-                        entity = await FetchEntity(key);
-                    }
-
-                    var oldValue = JsonConvert.DeserializeObject<T>(entity.ToJson()); // cheap clone operation
-
-                    JsonConvert.PopulateObject(dataJson, entity);
-
-                    await Cache.AddOrUpdate(key, entity);
-
-                    if (_changed != null)
-                    {
-                        _changed(this, key, string.Empty, entity, oldValue);
-                    }
+                    await PatchEntity(key, dataJson.ReadAs<JObject>());
                 }
             }
             else
@@ -219,7 +220,7 @@ namespace FireSharp.Response
                     {
                         var pathString = GetPathString(pathCaptures);
 
-                        _changed(this, key, pathString, entity, oldValue);
+                        _changed(this, key, new [] { pathString }, entity, oldValue);
                     }
                 }
                 else
@@ -245,30 +246,50 @@ namespace FireSharp.Response
                     {
                         WriteElement(writer, firstElement, dataJson);
                     }
-
-                    var entity = await Cache.Get(key);
-
-                    if (entity == null)
-                    {
-                        Log.Info($"Prior value for Entity {key} was not found in cache, fetching it ...");
-                        entity = await FetchEntity(key);
-                    }
-
-                    var oldValue = JsonConvert.DeserializeObject<T>(entity.ToJson()); // cheap clone operation
-
-                    // BUG: this throws an exception if the target property is an array and we're updating one value within the array
-                    JsonConvert.PopulateObject(sb.ToString(), entity);
-
-                    await Cache.AddOrUpdate(key, entity);
-
-                    if (_changed != null)
-                    {
-                        var pathString = GetPathString(pathCaptures);
-
-                        _changed(this, key, pathString, entity, oldValue);
-                    }
+                    
+                    await PatchEntity(key, sb.ToString().ReadAs<JObject>());
                 }
             }
+        }
+
+        private async Task PatchEntity(string key, JObject data)
+        {
+            var entity = CheapClone(await Cache.Get(key).ConfigureAwait(false));
+            var dataJson = data.ToJson();
+            
+            if (entity == null)
+            {
+                // entity is not cached, we will need to fetch it prior to updating
+                entity = await FetchEntity(key);
+            }
+
+            var oldValue = CheapClone(entity);
+
+            // BUG: this throws an exception if the target property is an array and we're updating one index within the array
+            JsonConvert.PopulateObject(dataJson, entity);
+
+            await Cache.AddOrUpdate(key, entity);
+
+            var paths = data.Properties().Select(p => p.Name).ToList();
+
+            Log.Debug($"Entity Patched:\nPaths={paths}\nOldvalue:{oldValue}\nNewValue:{entity}");
+            
+            _changed?.Invoke(this, key, paths, entity, oldValue);
+        }
+
+        private TObj CheapClone<TObj>(TObj obj)
+        {
+            if (Object.ReferenceEquals(obj, null))
+            {
+                return default(TObj);
+            }
+
+            var settings = new JsonSerializerSettings
+                               {
+                                   ObjectCreationHandling = ObjectCreationHandling.Replace
+                               };
+
+            return JsonConvert.DeserializeObject<TObj>(JsonConvert.SerializeObject(obj), settings);
         }
 
         private static string GetPathString(CaptureCollection pathCaptures)
