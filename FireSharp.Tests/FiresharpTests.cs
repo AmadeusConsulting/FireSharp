@@ -176,20 +176,24 @@ namespace FireSharp.Tests
 
             var expected = new Todo { name = "Execute CHANGEGETASYNC", priority = 2 };
 
+            var reset = new ManualResetEvent(false);
+
             var observer = await FirebaseClient.OnChangeGetAsync<Todo>(
                 $"fakepath/{id}/OnGetAsync/",
                 (events, arg) =>
                     {
                         changes.Add(arg);
+                        if (changes.Count == 2)
+                        {
+                            reset.Set();
+                        }
                     });
 
             await FirebaseClient.SetAsync($"fakepath/{id}/OnGetAsync/", expected);
 
-            await Task.Delay(2000);
-
             await FirebaseClient.SetAsync($"fakepath/{id}/OnGetAsync/name", "CHANGEGETASYNC-MODIFIED");
 
-            await Task.Delay(2000);
+            reset.WaitOne(TimeSpan.FromSeconds(30));
 
             try
             {
@@ -486,19 +490,29 @@ namespace FireSharp.Tests
             var removed = new Dictionary<string ,Todo>();
             var changed = new Dictionary<string, Tuple<Todo, Todo, IEnumerable<string>>>(); // new, old, path
 
+            var addedReset = new ManualResetEvent(false);
+            var removedReset = new ManualResetEvent(false);
+            var changedReset = new ManualResetEvent(false);
+
             var observer = await FirebaseClient.MonitorEntityListAsync<Todo>(
                 TodosListLocation,
                 (s, key, val) =>
                     {
                         added.Add(key, val);
+                        if (added.Count == 6)
+                        {
+                            addedReset.Set();
+                        }
                     },
                 (s, key, paths, val, oldVal) =>
                     {
                         changed.Add(key, new Tuple<Todo, Todo, IEnumerable<string>>(val, oldVal, paths));
+                        changedReset.Set();
                     },
                 (s, key, val) =>
                     {
                         removed.Add(key, val);
+                        removedReset.Set();
                     });
             
             try
@@ -515,7 +529,10 @@ namespace FireSharp.Tests
                             priority = 6
                         });
 
-                await Task.Delay(1000);
+                addedReset.WaitOne(TimeSpan.FromSeconds(30));
+                removedReset.WaitOne(TimeSpan.FromSeconds(30));
+                changedReset.WaitOne(TimeSpan.FromSeconds(30));
+                
 
                 Assert.AreEqual(6, added.Count);
                 Assert.IsTrue(added.Any(kvp => kvp.Key == todo1Response.Result.Name));
@@ -549,19 +566,29 @@ namespace FireSharp.Tests
             var removed = new Dictionary<string, Todo>();
             var changed = new Dictionary<string, Tuple<Todo, Todo, IEnumerable<string>>>(); // new, old, path
 
+            var addedReset = new ManualResetEvent(false);
+            var removedReset = new ManualResetEvent(false);
+            var changedReset = new ManualResetEvent(false);
+
             var observer = await FirebaseClient.MonitorEntityListAsync<Todo>(
                 TodosListLocation,
                 (s, key, val) =>
                 {
                     added.Add(key, val);
+                    if (added.Count == 6)
+                    {
+                        addedReset.Set();
+                    }
                 },
                 (s, key, paths, val, oldVal) =>
                 {
                     changed.Add(key, new Tuple<Todo, Todo, IEnumerable<string>>(val, oldVal, paths));
+                    changedReset.Set();
                 },
                 (s, key, val) =>
                 {
                     removed.Add(key, val);
+                    removedReset.Set();
                 });
 
             var todo1Response = await FirebaseClient.PushAsync(
@@ -618,7 +645,9 @@ namespace FireSharp.Tests
                         priority = 6
                     });
 
-                await Task.Delay(1000);
+                addedReset.WaitOne(TimeSpan.FromSeconds(30));
+                removedReset.WaitOne(TimeSpan.FromSeconds(30));
+                changedReset.WaitOne(TimeSpan.FromSeconds(30));
 
                 Assert.AreEqual(6, added.Count);
                 Assert.IsTrue(added.Any(kvp => kvp.Key == todo1Response.Result.Name));
@@ -676,6 +705,9 @@ namespace FireSharp.Tests
             var added = new Dictionary<string, Todo>();
             var removed = new Dictionary<string, Todo>();
             var changed = new Dictionary<string, Tuple<Todo, Todo, IEnumerable<string>>>(); // new, old, path
+            
+            var changedReset = new ManualResetEvent(false);
+
 
             var observer = await FirebaseClient.MonitorEntityListAsync<Todo>(
                 TodosListLocation,
@@ -686,6 +718,7 @@ namespace FireSharp.Tests
                 (s, key, paths, val, oldVal) =>
                 {
                     changed.Add(key, new Tuple<Todo, Todo, IEnumerable<string>>(val, oldVal, paths));
+                    changedReset.Set();
                 },
                 (s, key, val) =>
                 {
@@ -719,12 +752,11 @@ namespace FireSharp.Tests
                             position = "Manager"
                         });
 
-                await Task.Delay(1000);
+                changedReset.WaitOne(TimeSpan.FromSeconds(30));
 
                 Assert.AreEqual(2, added.Count);
                 Assert.IsTrue(added.Any(kvp => kvp.Key == todo1Response.Result.Name));
               
-
                 Assert.AreEqual(1, changed.Count);
                 Assert.IsTrue(changed.Single().Key == todo2Response.Result.Name);
                 Assert.Contains("assignee", changed.Single().Value.Item3.ToList()); // changed path
@@ -756,6 +788,14 @@ namespace FireSharp.Tests
             var removed2 = new Dictionary<string, Todo>();
             var changed2 = new Dictionary<string, Tuple<Todo, Todo, IEnumerable<string>>>(); // new, old, path
 
+            var addedReset = new ManualResetEvent(false);
+            var removedReset = new ManualResetEvent(false);
+            var changedReset = new ManualResetEvent(false);
+
+            var addedReset2 = new ManualResetEvent(false);
+            var removedReset2 = new ManualResetEvent(false);
+            var changedReset2 = new ManualResetEvent(false);
+
             var log = Config.LogManager.GetLogger("ConcurrentEntityStreaming");
 
             var observer = await FirebaseClient.MonitorEntityListAsync<Todo>(
@@ -764,16 +804,22 @@ namespace FireSharp.Tests
                 {
                     log.Info($"Added TODO {key} \n{val}");
                     added.Add(key, val);
+                    if (added.Count == 3)
+                    {
+                        addedReset.Set();
+                    }
                 },
                 (s, key, paths, val, oldVal) =>
                 {
                     log.Info($"Changed TODO {paths} \n{oldVal}\n{val}");
                     changed.Add(key, new Tuple<Todo, Todo, IEnumerable<string>>(val, oldVal, paths));
+                    changedReset.Set();
                 },
                 (s, key, val) =>
                 {
                     log.Info($"Removed TODO {key} \n{val}");
                     removed.Add(key, val);
+                    removedReset.Set();
                 });
 
             var observer2 = await FirebaseClient.MonitorEntityListAsync<Todo>(
@@ -782,16 +828,22 @@ namespace FireSharp.Tests
                 {
                     log.Info($"Added TODO {key} \n{val}");
                     added2.Add(key, val);
+                    if (added2.Count == 3)
+                    {
+                        addedReset2.Set();
+                    }
                 },
                 (s, key, paths, val, oldVal) =>
                 {
                     log.Info($"Changed TODO {paths} \n{oldVal}\n{val}");
                     changed2.Add(key, new Tuple<Todo, Todo, IEnumerable<string>>(val, oldVal, paths));
+                    changedReset2.Set();
                 },
                 (s, key, val) =>
                 {
                     log.Info($"Removed TODO {key} \n{val}");
                     removed2.Add(key, val);
+                    removedReset2.Set();
                 });
 
             var todo1Response = await FirebaseClient.PushAsync(
@@ -854,7 +906,13 @@ namespace FireSharp.Tests
                         priority = 6
                     });
 
-                await Task.Delay(1000);
+                addedReset.WaitOne(TimeSpan.FromSeconds(30));
+                changedReset.WaitOne(TimeSpan.FromSeconds(30));
+                removedReset.WaitOne(TimeSpan.FromSeconds(30));
+
+                addedReset2.WaitOne(TimeSpan.FromSeconds(30));
+                changedReset2.WaitOne(TimeSpan.FromSeconds(30));
+                removedReset2.WaitOne(TimeSpan.FromSeconds(30));
 
                 // 1
                 Assert.AreEqual(3, added.Count);
